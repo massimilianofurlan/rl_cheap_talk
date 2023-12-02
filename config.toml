@@ -1,7 +1,7 @@
 # USER CONFIGURATION
 [default]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 20000000
 convergence_threshold = 10000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
@@ -19,7 +19,7 @@ rtol = 0.001
 # BASE-CASE CONFIGURATION
 [basecase]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 20000000
 convergence_threshold = 10000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
@@ -37,13 +37,13 @@ rtol = 0.001
 # GRID SEARCH CONFIGURATION
 [gridsearch]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 20000000
 convergence_threshold = 10000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
 # learning rates
-alpha_s = 0.05
-alpha_r = 0.05
+alpha_s = 0.10
+alpha_r = 0.10
 # exploration decay
 lambda_s = 0.99998
 lambda_r = 0.99998
@@ -55,7 +55,7 @@ rtol = 0.001
 # BASE-CASE CONFIGURATION, PESSIMISTIC INITIALIZATION
 [pessimistic]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 20000000
 convergence_threshold = 10000
 # initialization (random, optimistic, pessimistic)
 q_init = "pessimistic"
@@ -73,7 +73,7 @@ rtol = 0.001
 # BASE-CASE CONFIGURATION, OPTIMISTIC INITIALIZATION
 [optimistic]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 20000000
 convergence_threshold = 10000
 # initialization (random, optimistic, pessimistic)
 q_init = "optimistic"
@@ -91,7 +91,7 @@ rtol = 0.001
 # BASE-CASE CONFIGURATION W/ MORE EXPLORATION
 [more_exploration]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 20000000
 convergence_threshold = 10000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"

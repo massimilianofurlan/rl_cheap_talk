@@ -8,7 +8,6 @@ const output_dir, temp_dir = gen_dirs()
 
 # SETTINGS
 const quiet = config["quiet"]
-const save_all = config["save_all"]
 const save_ = config["save"]
 const raw = config["raw"]
 
@@ -31,7 +30,7 @@ include("nash.jl")
 
 
 # GAME
-const n_agents = 2
+const n_agents = config["n_agents"]
 
 # number of states of the world
 const n_states = config["n_states"]
@@ -100,25 +99,22 @@ function main()
 
     println(stdout, "running the simulation...")    
     # preallocate output arrays
-    Q_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations);
-    Q_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations);
-    rewards = Array{Float32,3}(undef, n_max_episodes, n_agents, n_simulations);
-    n_episodes = Array{Int64,1}(undef, n_simulations);
-    n_conv_diff = Array{Int64,1}(undef, n_simulations);
-
+    Q_s = Array{Float32,4}(undef, n_states, n_messages, n_agents, n_simulations);
+    Q_r = Array{Float32,4}(undef, n_messages, n_actions, n_agents, n_simulations);
+    n_episodes_s = Array{Int64,2}(undef, n_agents, n_simulations);
+    n_episodes_r = Array{Int64,2}(undef, n_agents, n_simulations);
     rngs = [MersenneTwister(z) for z in 1:n_simulations]
     progress = Progress(n_simulations, color=:white, showspeed=true)
 
     # main loop
     @time Threads.@threads for z in 1:n_simulations
         rng = rngs[z]
-        rewards_ = view(rewards,:,:,z)  # views are passed by reference
-        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z], n_conv_diff[z] = run_simulation(rewards_, rng=rng);    
+        Q_s[:,:,:,z], Q_r[:,:,:,z], n_episodes_s[:,z], n_episodes_r[:,z] = run_simulation(rng=rng);    
         quiet || next!(progress)
     end
 
     println(stdout, "analyzing outcomes...") 
-    @time results = convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff); 
+    @time results = convergence_analysis(Q_s, Q_r, n_episodes_s, n_episodes_r); 
 
     println(stdout, "computing statistics...") 
     @time statistics = compute_statistics(results)
@@ -126,7 +122,7 @@ function main()
     show_experiment_outcomes(best_nash, statistics)
 
     println(save_ ? stdout : devnull, "saving data to file...") 
-    @time save__(best_nash, results, statistics, rewards)
+    @time save__(best_nash, results, statistics)
 end
 
 Random.seed!(0)

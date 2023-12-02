@@ -8,6 +8,11 @@ function parse_commandline()
     arg_settings = ArgParseSettings(allow_ambiguous_opts=true)
     @add_arg_table! arg_settings begin
         # GAME SETTINGS
+        "--n_agents", "-a"
+            arg_type = Int64
+            help = "number of agents"
+            default = 10
+            range_tester = x -> x > 1
         "--n_states", "-n"
             arg_type = Int64
             help = "number of states of the world"
@@ -32,10 +37,10 @@ function parse_commandline()
             help = "distribution over states: \"uniform\", \"increasing\", \"decreasing\", \"vshaped\", \"binomial\""
             default = "uniform"
             dest_name = "dist"  
-            range_tester = x -> x in ["uniform", "increasing", "decreasing" , "vshaped", "binomial"] 
+            range_tester = x -> x in ["uniform", "increasing", "decreasing" , "vshaped","binomial"] 
         #"--noise", "-e"
         #    arg_type = Float32
-        #    help = "error rate of communication channel (not implemented)"
+        #    help = "error rate of communication channel"
         #    default = 0.0f0  
         #    range_tester = x -> x >= 0.0f0 
         "--factor", "-k"
@@ -58,9 +63,6 @@ function parse_commandline()
         "--raw", "-r"
             help = "flag to exclusively run simulations and collect raw output"
             action = :store_true
-        "--save_all", "-S"
-            help = "flag to save all results (including reward paths)"
-            action = :store_true
         "--out_dir", "-o"
             arg_type = String
             help = "output directory name"
@@ -75,15 +77,10 @@ function parse_commandline()
     if parsed_args["n_messages"] == nothing
         parsed_args["n_messages"] = parsed_args["n_states"]
     end
-    # save_all implies saving
-    if parsed_args["save_all"] == true
-        parsed_args["save"] = true
-    end
-    # raw mode is quiet and does not save_all
+    # raw mode is quiet
     if parsed_args["raw"] == true
         parsed_args["save"] = true
         parsed_args["quiet"] = true
-        parsed_args["save_all"] = false
     end
     return parsed_args
 end
@@ -159,7 +156,6 @@ function show_experiment_outcomes(best_nash, statistics)
     push!(statistics_table, ["[CONVERGENCE]" "" ""])
     add_row(statistics_table, statistics, "freq"; std = false)
     add_row(statistics_table, statistics, "avg_n_episodes")
-    add_row(statistics_table, statistics, "avg_n_conv_diff", text = "n_r - n_s")
     push!(statistics_table, ["[REWARD METRICS]" "" ""])
     add_row(statistics_table, statistics, "avg_expected_reward_s")
     add_row(statistics_table, statistics, "avg_expected_reward_r")
@@ -172,7 +168,7 @@ function show_experiment_outcomes(best_nash, statistics)
    
     open("$temp_dir/experiment_outcomes.txt","w") do io
         pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,6])
-        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,10,11,14])
+        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,4,5,9,10,13])
     end
 
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
@@ -181,7 +177,7 @@ end
 
 # others
 
-function save__(best_nash::Dict, results::Dict, statistics::Dict, rewards::Array{Float32,3})
+function save__(best_nash::Dict, results::Dict, statistics::Dict)
     save_ || return nothing
    
     game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type, k], "_") # noise is omitted
@@ -197,7 +193,4 @@ function save__(best_nash::Dict, results::Dict, statistics::Dict, rewards::Array
     
     # move temp to folder (this overwrites the content of the destination)
     cp(temp_dir, out_dir, force=true)
-
-    # shrink rewards and save directly on outputdir to avoid moving large files
-    save_all == true && save("$out_dir/rewards.jld2", Dict("rewards" => Float16.(rewards[1:maximum(results["n_episodes"]),:,:])))
 end

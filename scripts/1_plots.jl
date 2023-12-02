@@ -31,7 +31,7 @@ function plot_avg(data; legend = "", title = "", ylabel = "", color = "red", ymi
             xticklabels = string.(set_biases[xticks]),
             scaled_y_ticks = false,
             ylabel_style = "rotate=-90",
-            tick_label_style = "{/pgf/number format/fixed, /pgf/number format/precision=4}",
+            y_tick_label_style = "{/pgf/number format/fixed, /pgf/number format/precision=4}",
             width = width, 
             height = height,
         }

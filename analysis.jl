@@ -1,51 +1,60 @@
 
 # convergence analysis
 
-function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
+function convergence_analysis(Q_s, Q_r, n_episodes_s, n_episodes_r)
     # analyze experiments at convergence 
 
     # no analysis in raw mode 
-    dict_input = Dict(name => value for (name, value) in zip(@names(Q_s, Q_r, n_episodes, n_conv_diff), (Q_s, Q_r, n_episodes, n_conv_diff)))
+    n_episodes = sum(n_episodes_s,dims=1)[:] 
+    dict_input = Dict(name => value for (name, value) in zip(@names(Q_s, Q_r, n_episodes_s, n_episodes_r, n_episodes), (Q_s, Q_r, n_episodes_s, n_episodes_r, n_episodes)))
     raw && return dict_input
 
     # preallocate arrays
-    policy_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
-    policy_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations)
-    induced_actions = Array{Float32,3}(undef, n_states, n_actions, n_simulations)
-    expected_reward_s = Array{Float32,1}(undef, n_simulations)
-    expected_reward_r = Array{Float32,1}(undef, n_simulations)
-    expected_aggregate_reward = Array{Float32,1}(undef, n_simulations)
-    absolute_error_s = Array{Float32,1}(undef, n_simulations)
-    absolute_error_r = Array{Float32,1}(undef, n_simulations)
-    mutual_information = Array{Float32,1}(undef, n_simulations)
-    optimal_reward_s = Array{Float32,1}(undef, n_simulations)
-    optimal_reward_r = Array{Float32,1}(undef, n_simulations)
-    posterior = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
+    policy_s = Array{Float32,4}(undef, n_states, n_messages, n_agents, n_simulations);
+    policy_r = Array{Float32,4}(undef, n_messages, n_actions, n_agents, n_simulations);
+    induced_actions = Array{Float32,5}(undef, n_states, n_actions, n_agents, n_agents, n_simulations);
+    expected_reward_s = Array{Float32,3}(undef, n_agents, n_agents, n_simulations);
+    expected_reward_r = Array{Float32,3}(undef, n_agents, n_agents, n_simulations);
+    expected_aggregate_reward = Array{Float32,3}(undef, n_agents, n_agents, n_simulations);
+    absolute_error_s = Array{Float32,3}(undef, n_agents, n_agents, n_simulations);
+    absolute_error_r = Array{Float32,3}(undef, n_agents, n_agents, n_simulations);
+    mutual_information = Array{Float32,2}(undef, n_agents, n_simulations);
+    optimal_reward_s = Array{Float32,3}(undef, n_agents, n_agents, n_simulations);
+    optimal_reward_r = Array{Float32,3}(undef, n_agents, n_agents, n_simulations);
+    posterior = Array{Float32,4}(undef, n_states, n_messages, n_agents, n_simulations);
 
     Threads.@threads for z in 1:n_simulations
-        # get policies at convergence
-        policy_s[:,:,z] = get_policy(Q_s[:,:,z], temp_s[n_episodes[z]])
-        policy_r[:,:,z] = get_policy(Q_r[:,:,z], temp_r[n_episodes[z]])
-        policy_s_ = policy_s[:,:,z]
-        policy_r_ = policy_r[:,:,z]
-        # compute induced actions at convergence
-        induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)
-        # compute (ex-ante) expected rewards at convergence
-        expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s_, policy_r_)
-        expected_aggregate_reward[z] = expected_reward_s[z] + expected_reward_r[z]  
-        # compute best response to opponent's policy at convergence
-        optimal_policy_s = get_best_reply_s(policy_r_)
-        optimal_policy_r = get_best_reply_r(policy_s_)
-        # compute expected rewards by best responding to opponent
-        optimal_reward_s[z], _ = get_expected_rewards(optimal_policy_s, policy_r_)
-        _, optimal_reward_r[z] = get_expected_rewards(policy_s_, optimal_policy_r)
-        # compute absolute expected error by (possibly) not best responding to opponent
-        absolute_error_s[z] = expected_reward_s[z] - optimal_reward_s[z]
-        absolute_error_r[z] = expected_reward_r[z] - optimal_reward_r[z]
-        # compute communication metrics
-        mutual_information[z] = get_mutual_information(policy_s_)
-        # compute theoretical posterior belief 
-        posterior[:,:,z] = get_posterior(policy_s_)
+        for i in 1:n_agents
+            # get policy at convergence
+            policy_s[:,:,i,z] = get_policy(Q_s[:,:,i,z], temp_s[n_episodes_s[i,z]])
+            # compute communication metrics
+            mutual_information[i,z] = get_mutual_information(policy_s[:,:,i,z])
+            # compute theoretical posterior belief 
+            posterior[:,:,i,z] = get_posterior(policy_s[:,:,i,z])
+        end
+        for j in 1:n_agents
+            # get policy at convergence
+            policy_r[:,:,j,z] = get_policy(Q_r[:,:,j,z], temp_r[n_episodes_r[j,z]])
+        end
+        for i in 1:n_agents, j in 1:n_agents
+            # get policies at convergence
+            policy_s_ = policy_s[:,:,i,z]
+            policy_r_ = policy_r[:,:,j,z]
+            # compute induced actions at convergence
+            induced_actions[:,:,i,j,z] = get_induced_actions(policy_s_, policy_r_)
+            # compute (ex-ante) expected rewards at convergence
+            expected_reward_s[i,j,z], expected_reward_r[i,j,z] = get_expected_rewards(policy_s_, policy_r_)
+            expected_aggregate_reward[i,j,z] = expected_reward_s[i,j,z] + expected_reward_r[i,j,z]  
+            # compute best response to opponent's policy at convergence
+            optimal_policy_s = get_best_reply_s(policy_r_)
+            optimal_policy_r = get_best_reply_r(policy_s_)
+            # compute expected rewards by best responding to opponent
+            optimal_reward_s[i,j,z], _ = get_expected_rewards(optimal_policy_s, policy_r_)
+            _, optimal_reward_r[i,j,z] = get_expected_rewards(policy_s_, optimal_policy_r)
+            # compute absolute expected error by (possibly) not best responding to opponent
+            absolute_error_s[i,j,z] = expected_reward_s[i,j,z] - optimal_reward_s[i,j,z]
+            absolute_error_r[i,j,z] = expected_reward_r[i,j,z] - optimal_reward_r[i,j,z]
+        end
     end
 
     # convert results to dict
@@ -160,7 +169,7 @@ function get_expected_rewards(policy_s::Array{Float32,2}, policy_r::Array{Float3
 end
 
 function get_mutual_information(policy::Array{Float32,2})
-    # compute normalized mutual information between m and t 
+    # compute normalized mutual information between m and t
     # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
     @fastmath p_m = policy'p_t
     return @fastmath sum(policy[t,m]*p_t[t] * log2(policy[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy[t,m] != 0) / (-p_t' * log2.(p_t)) 

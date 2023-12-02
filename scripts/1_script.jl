@@ -7,7 +7,7 @@
 #    replace OUT_DIR with the desired output dir
 # Run 'julia scripts/1_script.jl --help' to se all the other options
 
-using TOML
+
 using ArgParse
 
 function parse_commandline()
@@ -48,12 +48,13 @@ function parse_commandline()
             range_tester = x -> x in ["uniform", "increasing", "decreasing" , "vshaped","binomial"] 
         "--factor", "-k"
             arg_type = Float32
-            help = "utility scale factor"
+            help = "utility scale factor."
             default = 1.0f0
     end
     parsed_args = parse_args(arg_settings)
     return parsed_args
 end
+
 
 const n_cpus = Threads.nthreads()
 const config = parse_commandline()

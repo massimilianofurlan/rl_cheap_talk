@@ -1,28 +1,28 @@
 
 # play and learn: training 
 
-function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=MersenneTwister())
+function run_simulation(;rng::MersenneTwister=MersenneTwister())
     # main function, runs simulation and returns Q matrices of the agents 
     Q_s, Q_r, policy_s, policy_r = init_agents()                            # initialize Q-matrices and policies of the agents
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
-    n_r, n_s, ep = 0, 0, 1                                                  # n_s, s_r count episodes w/ similar policy
+    n_r, n_s = zeros(Int64, n_agents), zeros(Int64, n_agents)		        # n_s, s_r count episodes w/ similar policy
+    ep, ep_s, ep_r = 1, ones(Int64, n_agents), ones(Int64, n_agents)	    # number of episodes played for each agent and globally
     @inbounds while ep < n_max_episodes
-        t = sample_(rng, p_t)                                               # draw state of the world from prior
-        m = get_action(policy_s, Q_s, temp_s[ep], t, rng)                   # get action of sender (softmax)
-        #x = get_signal(m, rng)                                             # get noisy signal from channel
-        a = get_action(policy_r, Q_r, temp_r[ep], m, rng)                   # get action of receiver (softmax)
-        reward_s, reward_r = reward_matrix_s[a,t], reward_matrix_r[a,t]     # get utilities
-        rewards[ep,:] .= reward_s, reward_r                                 # log utilities
-        Q_s = update_q(Q_s, t, m, reward_s, alpha_s)                        # update Q-matrix of sender
-        Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
-        n_s = is_approx(policy_s, policy_s_) ? n_s + 1 : 0                  # if policy approx unchanged increment else reset
-        n_r = is_approx(policy_r, policy_r_) ? n_r + 1 : 0                  # if policy approx unchanged increment else reset
-        n_s == 0 && copy!(policy_s_, policy_s)                              # if policy changed 
-        n_r == 0 && copy!(policy_r_, policy_r)                              # if policy changed 
-        min(n_s, n_r) == convergence_threshold && break                     # break if policies have converged                
-        ep += 1
+        i, j = rand(1:n_agents), rand(1:n_agents)                                         # randomly select a sender and a receiver
+        t = sample_(rng, p_t)                                                             # draw state of the world from prior
+        m = get_action(view(policy_s,:,:,i), view(Q_s,:,:,i), temp_s[ep_s[i]], t, rng)    # get action of sender (softmax)
+        a = get_action(view(policy_r,:,:,j), view(Q_r,:,:,j), temp_r[ep_r[j]], m, rng)    # get action of receiver (softmax)
+        reward_s, reward_r = reward_matrix_s[a,t], reward_matrix_r[a,t]                   # get utilities
+        Q_s[:,:,j] = update_q(view(Q_s,:,:,i), t, m, reward_s, alpha_s)                   # update Q-matrix of sender
+        Q_r[:,:,j] = update_q(view(Q_r,:,:,j), m, a, reward_r, alpha_r)                   # update Q-matrix of receiver
+        n_s[i] = is_approx(view(policy_s,:,:,i), view(policy_s_,:,:,i)) ? n_s[i] + 1 : 0  # if policy approx unchanged increment else reset
+        n_r[j] = is_approx(view(policy_r,:,:,j), view(policy_r_,:,:,j)) ? n_r[j] + 1 : 0  # if policy approx unchanged increment else reset
+        n_s[i] == 0 && copy!(view(policy_s_,:,:,i), view(policy_s,:,:,i))                 # if policy changed 
+        n_r[j] == 0 && copy!(view(policy_r_,:,:,j), view(policy_r,:,:,j))                 # if policy changed 
+        min(minimum(n_s), minimum(n_r)) == convergence_threshold && break                 # break if policies have converged                
+        ep, ep_s[i], ep_r[j] = ep+1, ep_s[i]+1, ep_r[j]+1
     end
-    return Q_s, Q_r, ep, n_r - n_s
+    return Q_s, Q_r, ep_s, ep_r
 end
 
 # Q-learning
@@ -31,23 +31,23 @@ function init_agents()
     # initialize Q matrices and policies
     if q_init == "random"
         # randomly inizialize Q-matrices in interval [babbling_reward_i,0]
-        Q_s = babbling_reward_s * rand(Float32, n_states, n_messages)
-        Q_r = babbling_reward_r * rand(Float32, n_messages, n_actions)
+        Q_s = babbling_reward_s * rand(Float32, n_states, n_messages, n_agents)
+        Q_r = babbling_reward_r * rand(Float32, n_messages, n_actions, n_agents)
     elseif q_init == "optimistic"
         # optimistic initialization (agents get take more than 0)
-        Q_s = zeros(Float32, n_states, n_messages)
-        Q_r = zeros(Float32, n_messages, n_actions)
+        Q_s = zeros(Float32, n_states, n_messages, n_agents)
+        Q_r = zeros(Float32, n_messages, n_actions, n_agents)
     elseif q_init == "pessimistic"
         # pessimistic initialization
-        Q_s = babbling_reward_s * ones(Float32, n_states, n_messages)
-        Q_r = babbling_reward_r * ones(Float32, n_messages, n_actions)
+        Q_s = babbling_reward_s * ones(Float32, n_states, n_messages, n_agents)
+        Q_r = babbling_reward_r * ones(Float32, n_messages, n_actions, n_agents)
     end
-    policy_s = get_policy(Q_s, temp_0)
-    policy_r = get_policy(Q_r, temp_0)
+    policy_s = mapslices(x -> get_policy(x, temp_0), Q_s, dims = 1:2)
+    policy_r = mapslices(x -> get_policy(x, temp_0), Q_r, dims = 1:2)
     return Q_s, Q_r, policy_s, policy_r
 end
 
-function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, temp::Float32, state::Int64, rng::MersenneTwister)
+function get_action(policy::AbstractArray{Float32,2}, Q::AbstractArray{Float32,2}, temp::Float32, state::Int64, rng::MersenneTwister)
     # get action according to softmax distribution and update policy by reference
     # ∀c∈R softmax_i(x+c) = exp(x_i+c)/sum_i{exp(x_i+c)} = exp(x_i)/sum_i{exp(x_i)} = softmax_i(x)
     # exp.(x - max(x)) ensures softmax is numerically stable
@@ -67,7 +67,7 @@ function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, temp::Float32
     return sample_(rng, view(policy,state,:))
 end
 
-function update_q(Q::Array{Float32,2}, state::Int64, action::Int64, reward::Float32, alpha::Float32)
+function update_q(Q::AbstractArray{Float32,2}, state::Int64, action::Int64, reward::Float32, alpha::Float32)
     # value iteration:  Q(s,a) <- Q(s,a) + alpha [ R - Q(s,a) ]
     @fastmath @inbounds Q[state,action] = (1 - alpha) * Q[state,action] + alpha * reward 
     return Q
@@ -130,7 +130,7 @@ end
 
 # generic functions
 
-function is_approx(A::Array{Float32,2}, A_::Array{Float32,2})
+function is_approx(A::AbstractArray{Float32,2}, A_::AbstractArray{Float32,2})
     # fast isapprox(), discussion at https://discourse.julialang.org/t/faster-isapprox/101202/8
     norm_A, norm_A_, norm_diff = 0.0f0, 0.0f0, 0.0f0
     @turbo for i in eachindex(A)
