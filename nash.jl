@@ -44,16 +44,16 @@ end
 function get_exante_receiver_optimal()
     # get ex-ante receiver optimal equilibrium by scanning over all possible partitional equilibria
     # Frug (2016) shows receiver's optimal equilibrium is partitional
-    # works if there are as many messages as states and prior is uniform
     # if prior is not uniform, returns the ex-ante receiver-preferred equilibrium among partitional equilibria
     policy_s = zeros(Float32, n_states, n_messages, Threads.nthreads());
     policy_r = zeros(Float32, n_messages, n_actions, Threads.nthreads());
     expected_reward_r = fill(-Inf32, Threads.nthreads()); # makes it thread-safe
-    Threads.@threads for i in 2^(n_messages-1)-1 : -1 : 0
+    Threads.@threads for i in 2^(n_states-1)-1 : -1 : 0
         thread_idx = Threads.threadid()
         # construct (partitional) policy for the sender
-        cut = digits(i, base=2, pad=(n_messages-1))                                         # i-th possible partition
+        cut = digits(i, base=2, pad=(n_states-1))                                           # i-th possible partition
         N = count(cut.==1) + 1                                                              # number of messages
+        N <= n_messages || continue
         I_ = N > 1 ? findall(cut .== 1) : [n_states]                
         I_ = [i > 1 ? I_[i] - I_[i-1] : I_[i] for i in 1:length(I_)]
         N > 1 && push!(I_,n_states - sum(I_))
