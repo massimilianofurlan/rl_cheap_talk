@@ -36,7 +36,7 @@ const n_agents = 2
 # number of states of the world
 const n_states = config["n_states"]
 # number of actions for the receiver
-const n_actions = 2 * n_states - 1
+const n_actions = config["n_actions"]
 # number of possible messages
 const n_messages = config["n_messages"]
 

@@ -317,8 +317,8 @@ subdir = readdir(dirs[2], join=true)[2]
 const config_ = load(joinpath(subdir,"config.jld2"))	
 const n_simulations = config_["n_simulations"]
 const n_states = config_["n_states"]
-const n_actions = 2 * n_states - 1
-const n_messages = n_states
+const n_actions = config_["n_actions"]
+const n_messages = config_["n_messages"]
 const T = collect(0:1f0/(n_states-1):1) 
 const A = collect(0:1f0/(n_actions-1):1)
 const loss_type = config_["loss"]

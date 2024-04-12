@@ -33,7 +33,15 @@ function parse_commandline()
             help = "number of states of the world"
             default = 21
             range_tester = x -> x > 1
-        "--step_bias"
+        "--n_messages", "-m"
+            arg_type = Int64
+            help = "number of messages (default: n_states)"
+            range_tester = x -> x > 1
+        "--n_actions", "-a"
+            arg_type = Int64
+            help = "number of actions (default: 2*n_states-1)"
+            range_tester = x -> x > 1
+	"--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
             default = 0.01f0
@@ -54,20 +62,31 @@ function parse_commandline()
             default = 1.0f0
     end
     parsed_args = parse_args(arg_settings)
+    # default n_messages is n_states
+    if parsed_args["n_messages"] == nothing
+        parsed_args["n_messages"] = parsed_args["n_states"]
+    end
+    # default n_actions is 2 * n_states - 1
+    if parsed_args["n_actions"] == nothing
+        parsed_args["n_actions"] = 2 * parsed_args["n_states"] - 1
+    end 
     return parsed_args
 end
 
 const n_cpus = Threads.nthreads()
 const config = TOML.parsefile("scripts/2_config.toml")
+const config_ = parse_commandline()
 
-const n_simulations = config["n_simulations"]
-const n_states = config["n_states"]
-const set_biases = 0.0f0:config["step_bias"]:0.5f0
-const loss = config["loss"]
-const distr = config["dist"]
-const k = config["factor"]
-const out_dir = config["out_dir"]
-const config_section = config["config"]
+const n_simulations = config_["n_simulations"]
+const n_states = config_["n_states"]
+const n_messages = config_["n_messages"]
+const n_actions = config_["n_actions"]
+const set_biases = 0.0f0:config_["step_bias"]:0.5f0
+const loss = config_["loss"]
+const distr = config_["dist"]
+const k = config_["factor"]
+const out_dir = config_["out_dir"]
+const config_section = config_["config"]
 
 const set_alpha = range(config["min_alpha"],config["max_alpha"],config["n_alpha"])
 const lin_range_n_ep = range(log(0.01)/log(config["min_lambda"]),log(0.01)/log(config["max_lambda"]),config["n_lambda"])
@@ -105,7 +124,7 @@ for alpha in set_alpha
             # cycle over bias
             println("ALPHA: ", alpha , "\tDECAY: ", lambda , "\tBIAS: ", bias)
             run(`julia  -t $n_cpus main.jl 
-                        -n=$n_states -b=$bias -N=$n_simulations -l=$loss -d=$distr -k=$k 
+                        -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr -k=$k 
                         -o=$out_dir -c=$config_section -r`
                 )
         end

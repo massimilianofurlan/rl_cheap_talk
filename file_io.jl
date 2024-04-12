@@ -11,11 +11,15 @@ function parse_commandline()
         "--n_states", "-n"
             arg_type = Int64
             help = "number of states of the world"
-            default = 21
+            default = 11
             range_tester = x -> x > 1
         "--n_messages", "-m"
             arg_type = Int64
             help = "number of messages (default: n_states)"
+            range_tester = x -> x > 1
+        "--n_actions", "-a"
+            arg_type = Int64
+            help = "number of actions (default: 2*n_states-1)"
             range_tester = x -> x > 1
         "--bias", "-b"
             arg_type = Float32
@@ -74,6 +78,10 @@ function parse_commandline()
     # default n_messages is n_states
     if parsed_args["n_messages"] == nothing
         parsed_args["n_messages"] = parsed_args["n_states"]
+    end
+    # default n_actions is 2 * n_states -1 
+    if parsed_args["n_actions"] == nothing
+        parsed_args["n_actions"] = 2 * parsed_args["n_states"] - 1
     end
     # save_all implies saving
     if parsed_args["save_all"] == true

@@ -76,7 +76,7 @@ end
 
 function get_best_nash()
     best_policy_s, best_policy_r = undef, undef
-    if dist_type == "uniform" && loss_type == "quadratic"
+    if dist_type == "uniform" && loss_type == "quadratic" && n_messages >= n_states && issubset(T,A)
         best_policy_s, best_policy_r = get_exante_pareto_optimal()
     else
         best_policy_s, best_policy_r = get_exante_receiver_optimal()

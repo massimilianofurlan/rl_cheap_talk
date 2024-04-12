@@ -17,7 +17,7 @@ function parse_commandline()
         "--config", "-c"
             arg_type = String
             help = "config section"
-			default = "basecase"
+	    default = "basecase"
         "--out_dir", "-o"
             arg_type = String
             help = "output directory"
@@ -31,7 +31,15 @@ function parse_commandline()
             help = "number of states of the world"
             default = 21
             range_tester = x -> x > 1
-        "--step_bias"
+        "--n_messages", "-m"
+            arg_type = Int64
+            help = "number of messages (default: n_states)"
+            range_tester = x -> x > 1
+        "--n_actions", "-a"
+            arg_type = Int64
+            help = "number of actions (default: 2*n_states-1)"
+            range_tester = x -> x > 1
+	"--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
             default = 0.01f0
@@ -52,6 +60,14 @@ function parse_commandline()
             default = 1.0f0
     end
     parsed_args = parse_args(arg_settings)
+    # default n_messages is n_states
+    if parsed_args["n_messages"] == nothing
+        parsed_args["n_messages"] = parsed_args["n_states"]
+    end
+    # default n_actions is 2 * n_states - 1
+    if parsed_args["n_actions"] == nothing
+        parsed_args["n_actions"] = 2 * parsed_args["n_states"] - 1
+    end
     return parsed_args
 end
 
@@ -60,6 +76,8 @@ const config = parse_commandline()
 
 const n_simulations = config["n_simulations"]
 const n_states = config["n_states"]
+const n_messages = config["n_messages"]
+const n_actions = config["n_actions"]
 const set_biases = 0.0f0:config["step_bias"]:0.5f0
 const loss = config["loss"]
 const distr = config["dist"]
@@ -72,7 +90,7 @@ for bias in set_biases
 	println("BIAS: ", bias)
 	run(`cd ../..`)
 	run(`julia  -t $n_cpus main.jl 
-				-n=$n_states -b=$bias -N=$n_simulations -l=$loss -d=$distr -k=$k 
+				-n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr -k=$k 
 				-o=$out_dir -c=$config_section -r -q`
 		)
 end
