@@ -38,7 +38,7 @@ function get_exante_pareto_optimal()
     best_policy_s = convert_I_to_policy(I_, N)
     # get best response to policy_s
     best_policy_r = get_best_reply_r(best_policy_s)
-    return best_policy_s, best_policy_r
+    return best_policy_s, best_policy_r, N
 end
 
 function get_exante_receiver_optimal()
@@ -48,6 +48,7 @@ function get_exante_receiver_optimal()
     policy_s = zeros(Float32, n_states, n_messages, Threads.nthreads());
     policy_r = zeros(Float32, n_messages, n_actions, Threads.nthreads());
     expected_reward_r = fill(-Inf32, Threads.nthreads()); # makes it thread-safe
+    n_messages_on_path = undef
     Threads.@threads for i in 2^(n_states-1)-1 : -1 : 0
         thread_idx = Threads.threadid()
         # construct (partitional) policy for the sender
@@ -69,17 +70,18 @@ function get_exante_receiver_optimal()
         expected_reward_r[thread_idx] = expected_reward_r_
         policy_s[:,:,thread_idx] = copy(policy_s_)
         policy_r[:,:,thread_idx] = copy(policy_r_)
+        n_messages_on_path = N
     end
     best_idx = argmax(expected_reward_r)
-    return policy_s[:,:,best_idx], policy_r[:,:,best_idx]
+    return policy_s[:,:,best_idx], policy_r[:,:,best_idx], n_messages_on_path
 end
 
 function get_best_nash()
-    best_policy_s, best_policy_r = undef, undef
+    best_policy_s, best_policy_r, n_messages_on_path = undef, undef, undef
     if dist_type == "uniform" && loss_type == "quadratic" && n_messages >= n_states && mod(n_actions - 1, n_states - 1) == 0 && div(n_actions - 1, n_states - 1) > 1 
-        best_policy_s, best_policy_r = get_exante_pareto_optimal()
+        best_policy_s, best_policy_r, n_messages_on_path = get_exante_pareto_optimal()
     else
-        best_policy_s, best_policy_r = get_exante_receiver_optimal()
+        best_policy_s, best_policy_r, n_messages_on_path = get_exante_receiver_optimal()
     end
     # get induced actions
     best_induced_actions = get_induced_actions(best_policy_s, best_policy_r)
@@ -93,8 +95,8 @@ function get_best_nash()
     is_borderline = get_N(bias) != get_N(bias+1e-3)
 
     # convert pareto optimum variables to dict
-    best_nash = (best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_expected_aggregate_reward, best_mutual_information, best_posterior, is_borderline)
-    var_names = @names(best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_expected_aggregate_reward, best_mutual_information, best_posterior, is_borderline)
+    best_nash = (best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_expected_aggregate_reward, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
+    var_names = @names(best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_expected_aggregate_reward, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
     dict_pareto_optimum = Dict(name => value for (name, value) in zip(var_names, best_nash))
     return dict_pareto_optimum
 end 

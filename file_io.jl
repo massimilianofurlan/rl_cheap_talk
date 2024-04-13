@@ -157,6 +157,7 @@ function show_experiment_outcomes(best_nash, statistics)
     
     best_nash_header = (["BEST NASH", ""])
     best_nash_table::Any = []
+    push!(best_nash_table, ["n_messages_on_path" best_nash["n_messages_on_path"]])    
     push!(best_nash_table, ["best_expe_rewards_s" round(best_nash["best_expected_reward_s"], digits=4)])
     push!(best_nash_table, ["best_expe_rewards_r" round(best_nash["best_expected_reward_r"], digits=4)])
     push!(best_nash_table, ["best_expe_aggr_reward" round(best_nash["best_expected_aggregate_reward"], digits=4)])
@@ -180,7 +181,7 @@ function show_experiment_outcomes(best_nash, statistics)
     add_row(statistics_table, statistics, "quant_absolute_error", std = false, text = "epsilon_nash (.90, .95, 1)")
    
     open("$temp_dir/experiment_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,6])
+        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,7])
         pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,10,11,14])
     end
 
