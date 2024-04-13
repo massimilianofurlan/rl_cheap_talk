@@ -27,6 +27,7 @@ using StatsBase
 include("rl_agents.jl")
 include("analysis.jl")
 include("statistics.jl")
+include("nash.jl")
 
 
 # GAME
