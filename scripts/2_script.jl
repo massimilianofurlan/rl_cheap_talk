@@ -32,15 +32,15 @@ function parse_commandline()
             arg_type = Int64
             help = "number of states of the world"
             default = 11
-            range_tester = x -> x > 1
+            range_tester = x -> x > 0
         "--n_messages", "-m"
             arg_type = Int64
             help = "number of messages (default: n_states)"
-            range_tester = x -> x > 1
+            range_tester = x -> x > 0
         "--n_actions", "-a"
             arg_type = Int64
             help = "number of actions (default: 2*n_states-1)"
-            range_tester = x -> x > 1
+            range_tester = x -> x > 0
 	"--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
