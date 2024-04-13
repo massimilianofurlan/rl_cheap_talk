@@ -73,8 +73,8 @@ function extract_data(config, results, best_nash, extracted_data)
 	Threads.@threads for z in 1:n_converged
 		is_converged[z] == true || continue
         # get policies at convergence
-       	policy_s = get_policy(Q_s[:,:,z], temp_0*lambda_s^(n_episodes[z]-1))
-        policy_r = get_policy(Q_r[:,:,z], temp_0*lambda_r^(n_episodes[z]-1))
+       	policy_s = get_policy(Q_s[:,:,z], temp0_s*lambda_s^(n_episodes[z]-1))
+        policy_r = get_policy(Q_r[:,:,z], temp0_r*lambda_r^(n_episodes[z]-1))
         # compute (ex-ante) expected rewards at convergence
         expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s, policy_r)
         expected_aggregate_reward[z] = expected_reward_s[z] + expected_reward_r[z]  
@@ -160,7 +160,8 @@ const loss_type = config_["loss"]
 const k::Float32 = config_["factor"]
 const dist_type = config_["dist"]
 const p_t = gen_distribution()
-const temp_0::Float32 = config_["temp_0"]
+const temp0_s::Float32 = config_["temp0_s"]
+const temp0_r::Float32 = config_["temp0_r"]
 const lambda_s::Float32 = config_["lambda_s"]
 const lambda_r::Float32 = config_["lambda_r"]
 

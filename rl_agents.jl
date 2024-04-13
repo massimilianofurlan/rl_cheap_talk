@@ -42,8 +42,8 @@ function init_agents()
         Q_s = babbling_reward_s * ones(Float32, n_states, n_messages)
         Q_r = babbling_reward_r * ones(Float32, n_messages, n_actions)
     end
-    policy_s = get_policy(Q_s, temp_0)
-    policy_r = get_policy(Q_r, temp_0)
+    policy_s = get_policy(Q_s, temp0_s)
+    policy_r = get_policy(Q_r, temp0_r)
     return Q_s, Q_r, policy_s, policy_r
 end
 

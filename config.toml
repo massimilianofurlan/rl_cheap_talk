@@ -11,7 +11,8 @@ alpha_r = 0.10
 # exploration decay
 lambda_s = 0.99999
 lambda_r = 0.99999
-temp_0 = 1.0
+temp0_s = -1.0
+temp0_r = 1.0
 # tolerance
 rtol = 0.001
 
@@ -29,7 +30,8 @@ alpha_r = 0.10
 # exploration decay
 lambda_s = 0.99999
 lambda_r = 0.99999
-temp_0 = 1.0
+temp0_s = 1.0
+temp0_r = 1.0
 # tolerance
 rtol = 0.001
 
@@ -47,7 +49,8 @@ alpha_r = 0.05
 # exploration decay
 lambda_s = 0.99998
 lambda_r = 0.99998
-temp_0 = 1.0
+temp0_s = 1.0
+temp0_r = 1.0
 # tolerance
 rtol = 0.001
 
@@ -65,7 +68,8 @@ alpha_r = 0.10
 # exploration decay
 lambda_s = 0.99999
 lambda_r = 0.99999
-temp_0 = 1.0
+temp0_s = 1.0
+temp0_r = 1.0
 # tolerance
 rtol = 0.001
 
@@ -83,7 +87,8 @@ alpha_r = 0.10
 # exploration decay
 lambda_s = 0.99999
 lambda_r = 0.99999
-temp_0 = 1.0
+temp0_s = 1.0
+temp0_r = 1.0
 # tolerance
 rtol = 0.001
 
@@ -101,6 +106,7 @@ alpha_r = 0.10
 # exploration decay
 lambda_s = 0.999995
 lambda_r = 0.999995
-temp_0 = 1.0
+temp0_s = 1.0
+temp0_r = 1.0
 # tolerance
 rtol = 0.001

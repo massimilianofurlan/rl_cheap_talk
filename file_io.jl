@@ -119,7 +119,8 @@ function show_experiment_details()
         println(io, " alpha_r: \t " , alpha_r)
         println(io, " lambda_s: \t " , round.(lambda_s,digits=8))
         println(io, " lambda_r: \t " , round.(lambda_r,digits=8))
-        println(io, " temp_0: \t " , temp_0)
+        println(io, " temp0_s: \t " , temp0_s)
+        println(io, " temp0_r: \t " , temp0_r)
         println(io)
     end
     quiet || run(`cat $temp_dir/experiment_details.txt`)
@@ -193,7 +194,7 @@ function save__(best_nash::Dict, results::Dict, statistics::Dict, rewards::Array
     save_ || return nothing
    
     game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type, k], "_") # noise is omitted
-    hyperparameters_key = join([alpha_s, alpha_r, lambda_s, lambda_r, temp_0, q_init], "_")  
+    hyperparameters_key = join([alpha_s, alpha_r, lambda_s, lambda_r, temp0_s, temp0_r, q_init], "_")
     settings_key = join([n_simulations, n_max_episodes, convergence_threshold, rtol], "_") # irrelevanf for directory name
    
     save("$temp_dir/config.jld2", config)
