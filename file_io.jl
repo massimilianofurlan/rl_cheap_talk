@@ -16,7 +16,7 @@ function parse_commandline()
         "--n_messages", "-m"
             arg_type = Int64
             help = "number of messages (default: n_states)"
-            range_tester = x -> x > 0
+            range_tester = x -> (x > 0 || x == -1)
         "--n_actions", "-a"
             arg_type = Int64
             help = "number of actions (default: 2*n_states-1)"

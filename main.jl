@@ -27,7 +27,6 @@ using StatsBase
 include("rl_agents.jl")
 include("analysis.jl")
 include("statistics.jl")
-include("nash.jl")
 
 
 # GAME
@@ -37,8 +36,8 @@ const n_agents = 2
 const n_states = config["n_states"]
 # number of actions for the receiver
 const n_actions = config["n_actions"]
-# number of possible messages
-const n_messages = config["n_messages"]
+# number of possible messages (if -1 then n_messages = n_messages_on_path)
+const n_messages = config["n_messages"] != -1 ? config["n_messages"] : get_N(config["bias"])[1]
 
 # loss type 
 const loss_type = config["loss"]
