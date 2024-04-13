@@ -39,6 +39,7 @@ function extract_data(config, results, best_nash, extracted_data)
 	# read from files, some variavles must be global
 	global bias = config["bias"]
 	global reward_matrix_s, reward_matrix_r = k .* gen_reward_matrix()
+	global n_messages = config["n_messages"]
 	babbling_action = argmax(reward_matrix_r*p_t)
 	babbling_reward_s::Float32 = p_t'reward_matrix_s[babbling_action,:]
 	babbling_reward_r::Float32 = p_t'reward_matrix_r[babbling_action,:]
@@ -153,7 +154,6 @@ const config_ = load(joinpath(subdirs[2],"config.jld2"))
 const n_simulations = config_["n_simulations"]
 const n_states = config_["n_states"]
 const n_actions = config_["n_actions"]
-const n_messages = config_["n_messages"]
 const T = collect(0:1f0/(n_states-1):1) 
 const A = collect(0:1f0/(n_actions-1):1)
 const loss_type = config_["loss"]
