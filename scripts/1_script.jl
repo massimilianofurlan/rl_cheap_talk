@@ -10,7 +10,7 @@
 using TOML
 using ArgParse
 
-include("nash.jl")
+include(joinpath(pwd(),"nash.jl"))
 
 function parse_commandline()
     arg_settings = ArgParseSettings(allow_ambiguous_opts=true)
