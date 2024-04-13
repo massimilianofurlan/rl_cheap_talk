@@ -1,6 +1,19 @@
 
-# parse configurations from file and terminal
+# load libraries
+using JLD2
+using PrettyTables
+using ProgressMeter
+using Random
+using LoopVectorization
+using StatsBase
+# load files
 include("file_io.jl")
+include("rl_agents.jl")
+include("analysis.jl")
+include("statistics.jl")
+include("nash.jl")
+
+# parse configurations from file and terminal
 const term_parse = parse_commandline()
 const file_parse = TOML.parsefile("config.toml")[term_parse["config"]]
 const config = merge(file_parse, term_parse)
@@ -15,21 +28,6 @@ const raw = config["raw"]
 # redirect output to devnull if quiet mode
 redirect_stdout(quiet ? devnull : stdout)
 
-# load libraries
-println(stdout, "loading libraries...")
-using JLD2
-using PrettyTables
-using ProgressMeter
-using Random
-using LoopVectorization
-using StatsBase
-# load files
-include("rl_agents.jl")
-include("analysis.jl")
-include("statistics.jl")
-include("nash.jl")
-
-
 # GAME
 const n_agents = 2
 
@@ -37,8 +35,8 @@ const n_agents = 2
 const n_states = config["n_states"]
 # number of actions for the receiver
 const n_actions = config["n_actions"]
-# number of possible messages (if -1 then n_messages = n_messages_on_path)
-const n_messages = config["n_messages"] != -1 ? config["n_messages"] : get_N(config["bias"])[1]
+# number of possible messages
+const n_messages = config["n_messages"]
 
 # loss type 
 const loss_type = config["loss"]

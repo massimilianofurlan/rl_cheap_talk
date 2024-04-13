@@ -10,6 +10,8 @@
 using TOML
 using ArgParse
 
+include("nash.jl")
+
 function parse_commandline()
     arg_settings = ArgParseSettings(allow_ambiguous_opts=true)
     @add_arg_table! arg_settings begin
@@ -39,7 +41,7 @@ function parse_commandline()
             arg_type = Int64
             help = "number of actions (default: 2*n_states-1)"
             range_tester = x -> x > 0
-	"--step_bias"
+	   "--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
             default = 0.01f0
@@ -60,9 +62,11 @@ function parse_commandline()
             default = 1.0f0
     end
     parsed_args = parse_args(arg_settings)
-    # default n_messages is n_states
+    # default n_messages is n_states, if -1 then n_messages = n_messages_on_path
     if parsed_args["n_messages"] == nothing
         parsed_args["n_messages"] = parsed_args["n_states"]
+    elseif parsed_args["n_messages"] == -1
+        parsed_args["n_messages"] = get_N(parsed_args["bias"], parsed_args["n_states"])[1]
     end
     # default n_actions is 2 * n_states - 1
     if parsed_args["n_actions"] == nothing

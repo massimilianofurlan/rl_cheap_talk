@@ -1,5 +1,5 @@
 
-function get_N(bias)
+function get_N(bias, n_states)
     # based on Procedure 1 in Frug (2016)
     get_next(x) = max(1, x + ceil((n_states - 1)*4*bias) - 2)
     x = Array{Int,1}(undef, n_states)
@@ -24,7 +24,7 @@ end
 function get_exante_pareto_optimal()
     # get ex-ante pareto optimal equilibrium, based on Procedure 1 - Frug (2016)
     # only works if there are as many messages as states and prior is uniform
-    N, x = get_N(bias)
+    N, x = get_N(bias, n_states)
     # residual 
     y = n_states - sum(x)
     # y = q * N + r
@@ -92,7 +92,7 @@ function get_best_nash()
     best_mutual_information = get_mutual_information(best_policy_s) 
     best_posterior = get_posterior(best_policy_s)
     # check if a marginal change in bias changes the pareto optimal nash equilibrium
-    is_borderline = get_N(bias) != get_N(bias+1e-3)
+    is_borderline = get_N(bias, n_states) != get_N(bias+1e-3, n_states)
 
     # convert pareto optimum variables to dict
     best_nash = (best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_expected_aggregate_reward, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
