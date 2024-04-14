@@ -15,7 +15,7 @@ function parse_commandline()
             range_tester = x -> x > 0
         "--n_messages", "-m"
             arg_type = Int64
-            help = "number of messages (default: n_states)"
+            help = "number of messages, set to -1 to have as many messages as in the sender-preferred equilibrium (default: n_states)"
             range_tester = x -> (x > 0 || x == -1)
         "--n_actions", "-a"
             arg_type = Int64
