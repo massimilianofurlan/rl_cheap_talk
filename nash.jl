@@ -48,7 +48,7 @@ function get_exante_receiver_optimal()
     policy_s = zeros(Float32, n_states, n_messages, Threads.nthreads());
     policy_r = zeros(Float32, n_messages, n_actions, Threads.nthreads());
     expected_reward_r = fill(-Inf32, Threads.nthreads()); # makes it thread-safe
-    n_messages_on_path = undef
+    n_messages_on_path = zeros(Int64, Threads.nthreads())
     Threads.@threads for i in 2^(n_states-1)-1 : -1 : 0
         thread_idx = Threads.threadid()
         # construct (partitional) policy for the sender
@@ -70,10 +70,10 @@ function get_exante_receiver_optimal()
         expected_reward_r[thread_idx] = expected_reward_r_
         policy_s[:,:,thread_idx] = copy(policy_s_)
         policy_r[:,:,thread_idx] = copy(policy_r_)
-        n_messages_on_path = N
+        n_messages_on_path[thread_idx] = N
     end
     best_idx = argmax(expected_reward_r)
-    return policy_s[:,:,best_idx], policy_r[:,:,best_idx], n_messages_on_path
+    return policy_s[:,:,best_idx], policy_r[:,:,best_idx], n_messages_on_path[best_idx]
 end
 
 function get_best_nash()
