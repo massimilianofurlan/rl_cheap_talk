@@ -67,6 +67,26 @@ function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, temp::Float32
     return sample_(rng, view(policy,state,:))
 end
 
+ #=function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, epsilon::Float32, state::Int64, rng::MersenneTwister)
+    # get action according to e-greedy (off-)policy (deterministic policy)
+    # define A* = argmax_a Q(a,s) for given s in S
+    # a ∈ A* with p = 1-ϵ/|A*| + ϵ/|A|  (|A*| of them)
+    # a ∉ A* with p = ϵ / |A|           (|A|-|A*| of them)
+    n_states, n_actions = size(policy)
+    #@inbounds for state in 1:n_states
+        optim_actions = argmax_(view(Q,state,:))
+        p = epsilon / n_actions
+        q = (1.0f0 - epsilon) / length(optim_actions)
+        @inbounds for action in 1:n_actions
+            policy[state, action] = p
+            if action in optim_actions
+                policy[state, action] += q
+            end
+        end
+    #end
+    return sample_(rng, view(policy,state,:))
+end=#
+
 function update_q(Q::Array{Float32,2}, state::Int64, action::Int64, reward::Float32, alpha::Float32)
     # value iteration:  Q(s,a) <- Q(s,a) + alpha [ R - Q(s,a) ]
     @fastmath @inbounds Q[state,action] = (1 - alpha) * Q[state,action] + alpha * reward 
