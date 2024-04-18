@@ -71,7 +71,7 @@ end
 get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)
 
 # of path messages
-get_off_path_messages(policy_s::Array{Float32,2}; tol = 1f-6) = @fastmath (p_t'*policy_s)' .< tol
+get_off_path_messages(policy_s::Array{Float32,2}; tol = 1f-3) = @fastmath (p_t'*policy_s)' .< tol
 
 function get_mass_on_dominated(policy_s, policy_r, optimal_policy_s, optimal_policy_r)
     # compute probability mass on dominated actions across states
