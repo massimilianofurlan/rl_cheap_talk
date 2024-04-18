@@ -179,6 +179,8 @@ function show_experiment_outcomes(best_nash, statistics)
     push!(statistics_table, ["[POLICY METRICS]" "" ""])
     add_row(statistics_table, statistics, "avg_mutual_information")
     add_row(statistics_table, statistics, "avg_n_on_path_messages")
+    add_row(statistics_table, statistics, "avg_n_effective_messages")
+    add_row(statistics_table, statistics, "freq_partitional")
     push!(statistics_table, ["[EPSILON NASH]" "" ""])
     add_row(statistics_table, statistics, "avg_absolute_error_s", text = "avg_epsilon_s")
     add_row(statistics_table, statistics, "avg_absolute_error_r", text = "avg_epsilon_r")
@@ -191,7 +193,7 @@ function show_experiment_outcomes(best_nash, statistics)
 
     open("$temp_dir/experiment_outcomes.txt","w") do io
         pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,7])
-        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,9,10,12,13,16,17,21])
+        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,9,10,14,14,18,19,23])
     end
 
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)

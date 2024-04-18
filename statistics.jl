@@ -35,6 +35,8 @@ function compute_group_statistics(results, group)
     off_path_messages = results["off_path_messages"][:,group]
     mass_on_dominated_s = results["mass_on_dominated_s"][:,group]
     mass_on_dominated_r = results["mass_on_dominated_r"][:,group]
+    is_partitional = results["is_partitional"][group]
+    n_effective_messages = results["n_effective_messages"][group]
 
     # average episodes played, frequence in group
     freq = count(group) / n_simulations
@@ -51,6 +53,10 @@ function compute_group_statistics(results, group)
     avg_mutual_information = mean_std(mutual_information)
     # on-path and off-path messages
     avg_n_on_path_messages = mean_std(n_messages .- count(off_path_messages, dims=1))
+    # number of messages with no sysnonims
+    avg_n_effective_messages = mean_std(n_effective_messages)
+    # freq partitional policy 
+    freq_partitional = mean_std(is_partitional)
 
     # epsilon-nash 
     min_absolute_error = min.(absolute_error_s,absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
@@ -72,10 +78,12 @@ function compute_group_statistics(results, group)
 
     statistics = (group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_expected_aggregate_reward, 
                   avg_absolute_error_s, avg_absolute_error_r, avg_max_mass_on_dominated_s, avg_max_mass_on_dominated_r, avg_mutual_information, 
-                  avg_n_on_path_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_dominated, quant_max_mass_on_dominated, freq_nash)
+                  avg_n_on_path_messages, avg_n_effective_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_dominated, quant_max_mass_on_dominated, 
+                  freq_nash, freq_partitional)
     var_names = @names(group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_expected_aggregate_reward, 
                   avg_absolute_error_s, avg_absolute_error_r, avg_max_mass_on_dominated_s, avg_max_mass_on_dominated_r,  avg_mutual_information, 
-                  avg_n_on_path_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_dominated, quant_max_mass_on_dominated, freq_nash)
+                  avg_n_on_path_messages, avg_n_effective_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_dominated, quant_max_mass_on_dominated, 
+                  freq_nash, freq_partitional)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
 end

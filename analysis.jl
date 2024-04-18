@@ -1,6 +1,6 @@
 
 # convergence analysis
-
+using Plots
 function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
     # analyze experiments at convergence 
 
@@ -24,6 +24,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
     off_path_messages = Array{Bool,2}(undef, n_messages, n_simulations)
     mass_on_dominated_s = Array{Float32,2}(undef, n_states, n_simulations)
     mass_on_dominated_r = Array{Float32,2}(undef, n_messages, n_simulations)
+    is_partitional = Array{Bool,1}(undef, n_simulations)
+    n_effective_messages = Array{Int64,1}(undef, n_simulations)
 
     Threads.@threads for z in 1:n_simulations
         # get policies at convergence
@@ -53,15 +55,19 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
         off_path_messages[:,z] = get_off_path_messages(policy_s_)
         # compute mass on dominated messages (actions) for each state (message)
         mass_on_dominated_s[:,z], mass_on_dominated_r[:,z] = get_mass_on_dominated(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
+        # check if policy is partitional
+        is_partitional[z] = ispartitional(policy_s_)
+        # count number of messages that have no synonyms
+        n_effective_messages[z] = get_n_effective_messages(policy_s_)
     end
 
     # convert results to dict
     results = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, expected_aggregate_reward, 
                 optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, posterior,
-                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_dominated_s, mass_on_dominated_r)
+                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_dominated_s, mass_on_dominated_r, is_partitional, n_effective_messages)
     var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, expected_aggregate_reward, 
                 optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, posterior, 
-                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_dominated_s, mass_on_dominated_r)
+                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_dominated_s, mass_on_dominated_r, is_partitional, n_effective_messages)
     dict_results = Dict(name => value for (name, value) in zip(var_names, results))
     return merge(dict_input,dict_results)
 end
@@ -70,8 +76,10 @@ end
 # posterior beliefs
 get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)
 
-# of path messages
+# off path messages
 get_off_path_messages(policy_s::Array{Float32,2}; tol = 1f-3) = @fastmath (p_t'*policy_s)' .< tol
+
+# policy analysis
 
 function get_mass_on_dominated(policy_s, policy_r, optimal_policy_s, optimal_policy_r)
     # compute probability mass on dominated actions across states
@@ -85,6 +93,33 @@ function get_mass_on_dominated(policy_s, policy_r, optimal_policy_s, optimal_pol
     return mass_on_dominated_s, mass_on_dominated_r
 end
 
+function ispartitional(policy_s; tol = 1f-3)
+    # check if policy of the sender is partitional 
+    supp_policy_s = (policy_s .> tol)
+    @fastmath @inbounds for message in 1:n_messages-1
+        for message_ in message+1:n_messages
+            states = supp_policy_s[:,message] .|| supp_policy_s[:,message_]
+            flags = xor.(supp_policy_s[states,message],supp_policy_s[states,message_])
+            (all(flags) || all(.!flags)) || return false
+        end
+    end
+    return true
+end
+
+function get_n_effective_messages(policy_s; tol = 1f-3)
+    # count number of messages that have no synonyms
+    has_unique_meaning = trues(n_messages)
+    @fastmath @inbounds for message1 in 1:n_messages-1
+        has_unique_meaning[message1] || continue
+        for message2 in message1+1:n_messages
+            all(abs.(policy_s[:, message1] - policy_s[:, message2]) .< tol) || continue
+            has_unique_meaning[message2] = false
+        end
+    end
+    return count(has_unique_meaning)
+end
+
+
 # compute theoretical Q-matrices and Q-loss
 
 function get_q_s(policy_r::Array{Float32,2})
@@ -97,7 +132,7 @@ function get_q_r(policy_s::Array{Float32,2}; opb = p_t)
     # conditional probability of being in state t given message m (bayes update)     
     p_tm = get_posterior(policy_s)
     # off-path belief coincide with opb (default is prior)
-    off_path_messages = (p_t'*policy_s)' .< 1f-6
+    off_path_messages = get_off_path_messages(policy_s, tol = 1f-6)
     p_tm[:,off_path_messages] .= opb
     return @turbo (reward_matrix_r * p_tm)'
 end
