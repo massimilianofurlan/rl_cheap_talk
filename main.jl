@@ -85,7 +85,7 @@ const alpha_r::Float32 = config["alpha_r"]
 # exploration parameters (decay factor, initial exploration)
 const lambda_s::Float32 = config["lambda_s"] # 0.01^(1/(1000*n_states^2))
 const lambda_r::Float32 = config["lambda_r"] # 0.01^(1/(1000*n_states^2))
-const temp0_s::Float32 = config["temp0_s"] != -1 ? config["temp0_s"] :  babbling_reward_r / babbling_reward_s
+const temp0_s::Float32 = config["temp0_s"] != -1 ? config["temp0_s"] : config["temp0_r"] * babbling_reward_s / babbling_reward_r
 const temp0_r::Float32 = config["temp0_r"]
 # exploration decay
 const temp_s = [temp0_s * lambda_s^(t-1) for t in 1:n_max_episodes]
