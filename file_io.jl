@@ -119,8 +119,8 @@ function show_experiment_details()
         println(io, " q_init: \t " , q_init)        
         println(io, " alpha_s: \t " , alpha_s)
         println(io, " alpha_r: \t " , alpha_r)
-        println(io, " lambda_s: \t " , round.(lambda_s,digits=8))
-        println(io, " lambda_r: \t " , round.(lambda_r,digits=8))
+        println(io, " lambda_s: \t " , round.(lambda_s,digits=9))
+        println(io, " lambda_r: \t " , round.(lambda_r,digits=9))
         println(io, " temp0_s: \t " , temp0_s)
         println(io, " temp0_r: \t " , temp0_r)
         println(io)
@@ -141,11 +141,11 @@ function gen_dirs()
 end
 
 function add_row(rows, statistics, var_name; std = true, text = var_name)
-    format_txt(var) = string(round.(Float64.(var[1]),digits=5), " (", round.(Float64.(var[2]),digits=5),")") 
+    format_txt(var) = string(round.(Float64.(var[1]),digits=6), " (", round.(Float64.(var[2]),digits=6),")") 
     row::Any = [text]
     for key in ["converged", "not_converged"]
         if haskey(statistics[key], var_name)
-            cell = std ? format_txt(statistics[key][var_name]) : string(round.(Float64.(statistics[key][var_name]), digits = 4))
+            cell = std ? format_txt(statistics[key][var_name]) : string(round.(Float64.(statistics[key][var_name]), digits = 5))
             row = hcat(row, cell)
         else
             row = hcat(row, " -- ")
@@ -176,15 +176,22 @@ function show_experiment_outcomes(best_nash, statistics)
     add_row(statistics_table, statistics, "avg_expected_reward_s")
     add_row(statistics_table, statistics, "avg_expected_reward_r")
     add_row(statistics_table, statistics, "avg_expected_aggregate_reward", text = "avg_expe_aggr_reward")
+    push!(statistics_table, ["[POLICY METRICS]" "" ""])
     add_row(statistics_table, statistics, "avg_mutual_information")
+    add_row(statistics_table, statistics, "avg_n_on_path_messages")
     push!(statistics_table, ["[EPSILON NASH]" "" ""])
-    add_row(statistics_table, statistics, "avg_absolute_error_s")
-    add_row(statistics_table, statistics, "avg_absolute_error_r")
-    add_row(statistics_table, statistics, "quant_absolute_error", std = false, text = "epsilon_nash (.90, .95, 1)")
-   
+    add_row(statistics_table, statistics, "avg_absolute_error_s", text = "avg_epsilon_s")
+    add_row(statistics_table, statistics, "avg_absolute_error_r", text = "avg_epsilon_r")
+    add_row(statistics_table, statistics, "quant_min_absolute_error", std = false, text = "epsilon_nash (.90, .95, 1)")
+    push!(statistics_table, ["[GAMMA NASH]" "" ""])
+    add_row(statistics_table, statistics, "avg_max_mass_on_dominated_s", text = "n_messages x avg_gamma_s")
+    add_row(statistics_table, statistics, "avg_max_mass_on_dominated_r", text = "n_actions x avg_gamma_r")
+    add_row(statistics_table, statistics, "quant_max_mass_on_dominated", std = false, text = "gamma_nash (.25, .50, 0.75)")
+    add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-3)"; std = false)
+
     open("$temp_dir/experiment_outcomes.txt","w") do io
         pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,7])
-        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,10,11,14])
+        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,9,10,12,13,16,17,21])
     end
 
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
