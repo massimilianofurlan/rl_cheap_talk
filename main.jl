@@ -88,8 +88,8 @@ const lambda_r::Float32 = config["lambda_r"] # 0.01^(1/(1000*n_states^2))
 const temp0_s::Float32 = config["temp0_s"] != -1 ? config["temp0_s"] : config["temp0_r"] * babbling_reward_s / babbling_reward_r
 const temp0_r::Float32 = config["temp0_r"]
 # exploration decay
-const temp_s = [temp0_s * lambda_s^(t-1) for t in 1:n_max_episodes]
-const temp_r = [temp0_r * lambda_r^(t-1) for t in 1:n_max_episodes]
+const temp_s = [max(temp0_s * lambda_s^(t-1), 1f-30) for t in 1:n_max_episodes]
+const temp_r = [max(temp0_r * lambda_r^(t-1), 1f-30) for t in 1:n_max_episodes]
 
 show_experiment_details()
 
