@@ -22,8 +22,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
     optimal_reward_r = Array{Float32,1}(undef, n_simulations)
     posterior = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
     off_path_messages = Array{Bool,2}(undef, n_messages, n_simulations)
-    mass_on_dominated_s = Array{Float32,2}(undef, n_states, n_simulations)
-    mass_on_dominated_r = Array{Float32,2}(undef, n_messages, n_simulations)
+    mass_on_suboptim_s = Array{Float32,2}(undef, n_states, n_simulations)
+    mass_on_suboptim_r = Array{Float32,2}(undef, n_messages, n_simulations)
     is_partitional = Array{Bool,1}(undef, n_simulations)
     n_effective_messages = Array{Int64,1}(undef, n_simulations)
 
@@ -51,23 +51,23 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
         mutual_information[z] = get_mutual_information(policy_s_)
         # compute theoretical posterior belief 
         posterior[:,:,z] = get_posterior(policy_s_)
-        # get off path messages and the actions they would induce
+        # get off path messages
         off_path_messages[:,z] = get_off_path_messages(policy_s_)
-        # compute mass on dominated messages (actions) for each state (message)
-        mass_on_dominated_s[:,z], mass_on_dominated_r[:,z] = get_mass_on_dominated(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
+        # compute mass on suboptim messages (actions) for each state (message)
+        mass_on_suboptim_s[:,z], mass_on_suboptim_r[:,z] = get_mass_on_suboptim(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
         # check if policy is partitional
         is_partitional[z] = ispartitional(policy_s_)
         # count number of messages that have no synonyms
-        n_effective_messages[z] = get_n_effective_messages(policy_s_)
+        n_effective_messages[z] = get_n_effective_messages(policy_s_[:,.!off_path_messages[:,z]])
     end
 
     # convert results to dict
     results = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, expected_aggregate_reward, 
                 optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, posterior,
-                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_dominated_s, mass_on_dominated_r, is_partitional, n_effective_messages)
+                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
     var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, expected_aggregate_reward, 
                 optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, posterior, 
-                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_dominated_s, mass_on_dominated_r, is_partitional, n_effective_messages)
+                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
     dict_results = Dict(name => value for (name, value) in zip(var_names, results))
     return merge(dict_input,dict_results)
 end
@@ -81,16 +81,16 @@ get_off_path_messages(policy_s::Array{Float32,2}; tol = 1f-3) = @fastmath (p_t'*
 
 # policy analysis
 
-function get_mass_on_dominated(policy_s, policy_r, optimal_policy_s, optimal_policy_r)
-    # compute probability mass on dominated actions across states
+function get_mass_on_suboptim(policy_s, policy_r, optimal_policy_s, optimal_policy_r)
+    # compute probability mass on suboptim actions across states
     # TODO: consider if weighting by p_t and policy_s_'p_t
     supp_policy_s, supp_optimal_policy_s = (policy_s .> 0), (optimal_policy_s .> 0)
     supp_policy_r, supp_optimal_policy_r = (policy_r .> 0), (optimal_policy_r .> 0)
-    dominated_messages = (supp_optimal_policy_s - supp_policy_s) .< 0
-    dominated_actions = (supp_optimal_policy_r - supp_policy_r) .< 0
-    mass_on_dominated_s = mean(dominated_messages .* policy_s, dims=2)[:]
-    mass_on_dominated_r = mean(dominated_actions .* policy_r, dims=2)[:]
-    return mass_on_dominated_s, mass_on_dominated_r
+    suboptim_messages = (supp_optimal_policy_s - supp_policy_s) .< 0
+    suboptim_actions = (supp_optimal_policy_r - supp_policy_r) .< 0
+    mass_on_suboptim_s = mean(suboptim_messages .* policy_s, dims=2)[:]
+    mass_on_suboptim_r = mean(suboptim_actions .* policy_r, dims=2)[:]
+    return mass_on_suboptim_s, mass_on_suboptim_r
 end
 
 function ispartitional(policy_s; tol = 1f-3)
@@ -108,10 +108,11 @@ end
 
 function get_n_effective_messages(policy_s; tol = 1f-3)
     # count number of messages that have no synonyms
-    has_unique_meaning = trues(n_messages)
-    @fastmath @inbounds for message1 in 1:n_messages-1
+    n_on_path_messages = size(policy_s,2)
+    has_unique_meaning = trues(n_on_path_messages)
+    @fastmath @inbounds for message1 in 1:n_on_path_messages-1
         has_unique_meaning[message1] || continue
-        for message2 in message1+1:n_messages
+        for message2 in message1+1:n_on_path_messages
             all(abs.(policy_s[:, message1] - policy_s[:, message2]) .< tol) || continue
             has_unique_meaning[message2] = false
         end

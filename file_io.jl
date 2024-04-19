@@ -186,9 +186,9 @@ function show_experiment_outcomes(best_nash, statistics)
     add_row(statistics_table, statistics, "avg_absolute_error_r", text = "avg_epsilon_r")
     add_row(statistics_table, statistics, "quant_min_absolute_error", std = false, text = "epsilon_nash (.90, .95, 1)")
     push!(statistics_table, ["[GAMMA NASH]" "" ""])
-    add_row(statistics_table, statistics, "avg_max_mass_on_dominated_s", text = "n_messages x avg_gamma_s")
-    add_row(statistics_table, statistics, "avg_max_mass_on_dominated_r", text = "n_actions x avg_gamma_r")
-    add_row(statistics_table, statistics, "quant_max_mass_on_dominated", std = false, text = "gamma_nash (.25, .50, 0.75)")
+    add_row(statistics_table, statistics, "avg_max_mass_on_suboptim_s", text = "n_messages x avg_gamma_s")
+    add_row(statistics_table, statistics, "avg_max_mass_on_suboptim_r", text = "n_actions x avg_gamma_r")
+    add_row(statistics_table, statistics, "quant_max_mass_on_suboptim", std = false, text = "gamma_nash (.25, .50, 0.75)")
     add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-3)"; std = false)
 
     open("$temp_dir/experiment_outcomes.txt","w") do io

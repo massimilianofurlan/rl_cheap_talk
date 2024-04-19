@@ -33,8 +33,8 @@ function compute_group_statistics(results, group)
     absolute_error_r = results["absolute_error_r"][group]
     mutual_information = results["mutual_information"][group]
     off_path_messages = results["off_path_messages"][:,group]
-    mass_on_dominated_s = results["mass_on_dominated_s"][:,group]
-    mass_on_dominated_r = results["mass_on_dominated_r"][:,group]
+    mass_on_suboptim_s = results["mass_on_suboptim_s"][:,group]
+    mass_on_suboptim_r = results["mass_on_suboptim_r"][:,group]
     is_partitional = results["is_partitional"][group]
     n_effective_messages = results["n_effective_messages"][group]
 
@@ -63,26 +63,26 @@ function compute_group_statistics(results, group)
     quant_min_absolute_error = quantile(min_absolute_error, 1.0 .- [0.9,0.95,1])  # value of ϵ that makes 90, 95 and 100% of simulation an ϵ-approximate equilibrium
    
     # gamma
-    max_mass_on_dominated_s = maximum(mass_on_dominated_s, dims=1)[:]
-    max_mass_on_dominated_r = maximum(mass_on_dominated_r[.!off_path_messages], dims=1)[:]
+    max_mass_on_suboptim_s = maximum(mass_on_suboptim_s, dims=1)[:]
+    max_mass_on_suboptim_r = maximum(.!off_path_messages .* mass_on_suboptim_r, dims=1)[:]
     # average gamma (action adjusted)
-    avg_max_mass_on_dominated_s = mean_std(max_mass_on_dominated_s * n_messages) 
-    avg_max_mass_on_dominated_r = mean_std(max_mass_on_dominated_r * n_actions) 
+    avg_max_mass_on_suboptim_s = mean_std(max_mass_on_suboptim_s * n_messages) 
+    avg_max_mass_on_suboptim_r = mean_std(max_mass_on_suboptim_r * n_actions) 
     # gamma-nash
-    max_mass_on_dominated = max.(max_mass_on_dominated_s, max_mass_on_dominated_r)
-    quant_max_mass_on_dominated = quantile(max_mass_on_dominated, [0.25,0.5,0.75])
+    max_mass_on_suboptim = max.(max_mass_on_suboptim_s, max_mass_on_suboptim_r)
+    quant_max_mass_on_suboptim = quantile(max_mass_on_suboptim, [0.25,0.5,0.75])
     
     # exact nash (γ .< 1f-3)
-    freq_nash = count(max_mass_on_dominated .< 1f-3) / n_simulations
+    freq_nash = count(max_mass_on_suboptim .< 1f-3) / n_simulations
 
 
     statistics = (group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_expected_aggregate_reward, 
-                  avg_absolute_error_s, avg_absolute_error_r, avg_max_mass_on_dominated_s, avg_max_mass_on_dominated_r, avg_mutual_information, 
-                  avg_n_on_path_messages, avg_n_effective_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_dominated, quant_max_mass_on_dominated, 
+                  avg_absolute_error_s, avg_absolute_error_r, avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, 
+                  avg_n_on_path_messages, avg_n_effective_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, 
                   freq_nash, freq_partitional)
     var_names = @names(group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_expected_aggregate_reward, 
-                  avg_absolute_error_s, avg_absolute_error_r, avg_max_mass_on_dominated_s, avg_max_mass_on_dominated_r,  avg_mutual_information, 
-                  avg_n_on_path_messages, avg_n_effective_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_dominated, quant_max_mass_on_dominated, 
+                  avg_absolute_error_s, avg_absolute_error_r, avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_mutual_information, 
+                  avg_n_on_path_messages, avg_n_effective_messages, min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, 
                   freq_nash, freq_partitional)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
