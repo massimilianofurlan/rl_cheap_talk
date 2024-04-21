@@ -51,7 +51,7 @@ function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, temp::Float32
     # get action according to softmax distribution and update policy by reference
     # ∀c∈R softmax_i(x+c) = exp(x_i+c)/sum_i{exp(x_i+c)} = exp(x_i)/sum_i{exp(x_i)} = softmax_i(x)
     # exp.(x - max(x)) ensures softmax is numerically stable
-    # warning: might result in NaN if temp gets extremely small (switch to Float64 in that case)
+    # warning: might result in NaN if temp gets extremely small
     n_states, n_actions = size(policy)
     @inbounds for state in 1:n_states
         cum_sum = 0.0f0
