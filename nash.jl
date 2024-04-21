@@ -23,7 +23,7 @@ end
 
 function get_exante_pareto_optimal()
     # get ex-ante pareto optimal equilibrium, based on Procedure 1 - Frug (2016)
-    # only works if there are as many messages as states and prior is uniform
+    # only works if there are as many messages as states, the set of actions is enoguh rich, utility is quadratic and the prior is uniform
     N, x = get_N(bias, n_states)
     # residual 
     y = n_states - sum(x)
