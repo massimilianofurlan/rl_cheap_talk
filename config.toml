@@ -11,7 +11,7 @@ alpha_r = 0.10
 # exploration decay
 lambda_s = 0.99999
 lambda_r = 0.99999
-temp0_s = -1.0
+temp0_s = 1.0
 temp0_r = 1.0
 # tolerance
 rtol = 0.001
