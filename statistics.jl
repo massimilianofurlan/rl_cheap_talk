@@ -66,14 +66,14 @@ function compute_group_statistics(results, group)
     max_mass_on_suboptim_s = maximum(mass_on_suboptim_s, dims=1)[:]
     max_mass_on_suboptim_r = maximum(.!off_path_messages .* mass_on_suboptim_r, dims=1)[:]
     # average gamma (action adjusted)
-    avg_max_mass_on_suboptim_s = mean_std(max_mass_on_suboptim_s * n_messages) 
-    avg_max_mass_on_suboptim_r = mean_std(max_mass_on_suboptim_r * n_actions) 
+    avg_max_mass_on_suboptim_s = mean_std(max_mass_on_suboptim_s) 
+    avg_max_mass_on_suboptim_r = mean_std(max_mass_on_suboptim_r) 
     # gamma-nash
     max_mass_on_suboptim = max.(max_mass_on_suboptim_s, max_mass_on_suboptim_r)
     quant_max_mass_on_suboptim = quantile(max_mass_on_suboptim, [0.25,0.5,0.75])
     
     # exact nash (γ .< 1f-3)
-    freq_nash = count(max_mass_on_suboptim .< 1f-3) / n_simulations
+    freq_nash = count(max_mass_on_suboptim .< 1f-2) / n_simulations
 
 
     statistics = (group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_expected_aggregate_reward, 
