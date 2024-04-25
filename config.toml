@@ -9,10 +9,10 @@ q_init = "random"
 alpha_s = 0.10
 alpha_r = 0.10
 # exploration decay
-lambda_s = 0.99999
-lambda_r = 0.99999
-temp0_s = 1.0
-temp0_r = 1.0
+lambda_s = 0.000005
+lambda_r = 0.000005
+temp0_s = 0.1
+temp0_r = 0.1
 # tolerance
 rtol = 0.001
 
@@ -28,10 +28,10 @@ q_init = "random"
 alpha_s = 0.10
 alpha_r = 0.10
 # exploration decay
-lambda_s = 0.99999
-lambda_r = 0.99999
-temp0_s = 1.0
-temp0_r = 1.0
+lambda_s = 0.000005
+lambda_r = 0.000005
+temp0_s = 0.1
+temp0_r = 0.1
 # tolerance
 rtol = 0.001
 
@@ -47,10 +47,10 @@ q_init = "random"
 alpha_s = 0.05
 alpha_r = 0.05
 # exploration decay
-lambda_s = 0.99998
-lambda_r = 0.99998
-temp0_s = 1.0
-temp0_r = 1.0
+lambda_s = 0.000005
+lambda_r = 0.000005
+temp0_s = 0.1
+temp0_r = 0.1
 # tolerance
 rtol = 0.001
 
@@ -66,10 +66,10 @@ q_init = "pessimistic"
 alpha_s = 0.10
 alpha_r = 0.10
 # exploration decay
-lambda_s = 0.99999
-lambda_r = 0.99999
-temp0_s = 1.0
-temp0_r = 1.0
+lambda_s = 0.000005
+lambda_r = 0.000005
+temp0_s = 0.1
+temp0_r = 0.1
 # tolerance
 rtol = 0.001
 
@@ -85,10 +85,10 @@ q_init = "optimistic"
 alpha_s = 0.10
 alpha_r = 0.10
 # exploration decay
-lambda_s = 0.99999
-lambda_r = 0.99999
-temp0_s = 1.0
-temp0_r = 1.0
+lambda_s = 0.000005
+lambda_r = 0.000005
+temp0_s = 0.1
+temp0_r = 0.1
 # tolerance
 rtol = 0.001
 
@@ -104,9 +104,9 @@ q_init = "random"
 alpha_s = 0.10
 alpha_r = 0.10
 # exploration decay
-lambda_s = 0.999995
-lambda_r = 0.999995
-temp0_s = 1.0
-temp0_r = 1.0
+lambda_s = 0.000005
+lambda_r = 0.000005
+temp0_s = 0.1
+temp0_r = 0.1
 # tolerance
 rtol = 0.001
