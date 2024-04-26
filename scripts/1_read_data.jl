@@ -14,6 +14,7 @@ using ArgParse
 macro names(arg...) string.(arg) end
 include(joinpath(pwd(),"analysis.jl"))
 include(joinpath(pwd(),"rl_agents.jl"))
+include(joinpath(pwd(),"nash.jl"))
 
 # functions
 
@@ -24,43 +25,35 @@ function parse_commandline()
         "--in_dir", "-i"
             arg_type = String
             help = "input directory"
+            default = "out_basecase"
         "--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
-            default = 0.01f0
+            default = 0.005f0
     end
     parsed_args = parse_args(arg_settings)
     return parsed_args
 end
 
-function extract_data(config, results, best_nash, extracted_data)
+function extract_data(config, results, babbling_nash, extracted_data)
 	# extract and process data from data structures
 
-	# read from files, some variavles must be global
+	# read from files, some variables must be global
 	global bias = config["bias"]
 	global reward_matrix_s, reward_matrix_r = k .* gen_reward_matrix()
-	global n_messages = config["n_messages"]
+
 	babbling_action = argmax(reward_matrix_r*p_t)
 	babbling_reward_s::Float32 = p_t'reward_matrix_s[babbling_action,:]
 	babbling_reward_r::Float32 = p_t'reward_matrix_r[babbling_action,:]
-	babbling_aggregate_reward = babbling_reward_s + babbling_reward_r
 
 	n_max_episodes = config["n_max_episodes"] 	
 	Q_s = results["Q_s"]
 	Q_r = results["Q_r"]
 	n_episodes = results["n_episodes"]
-	best_expected_reward_s = best_nash["best_expected_reward_s"]
-	best_expected_reward_r = best_nash["best_expected_reward_r"]
-	best_expected_aggregate_reward = best_expected_reward_s + best_expected_reward_r
-	best_mutual_information = best_nash["best_mutual_information"]
-
-	# print n_states and bias to console
-	println("n_states: ", n_states, "\tbias: ", bias)
 
 	# compute is_converged bool and frequence
     is_converged = n_episodes .< n_max_episodes
     n_converged = count(is_converged)
-	freq_converged = n_converged / n_simulations
 
 	# preallocate array
     expected_reward_s = Array{Float32,1}(undef, n_converged)
@@ -70,15 +63,20 @@ function extract_data(config, results, best_nash, extracted_data)
     absolute_error_r = Array{Float32,1}(undef, n_converged)
     max_absolute_error = Array{Float32,1}(undef, n_converged)
     mutual_information = Array{Float32,1}(undef, n_converged)
+    n_on_path_messages = Array{Int64,1}(undef, n_converged)
+    max_mass_on_suboptim_s = Array{Float32,1}(undef, n_converged)
+    max_mass_on_suboptim_r = Array{Float32,1}(undef, n_converged)
+    is_partitional = Array{Bool,1}(undef, n_converged)
+    n_effective_messages = Array{Int64,1}(undef, n_converged)
+    max_max_mass_on_suboptim = Array{Float32,1}(undef, n_converged)
 	# compute metrics of interest for converged sessions
 	Threads.@threads for z in 1:n_converged
 		is_converged[z] == true || continue
         # get policies at convergence
-       	policy_s = get_policy(Q_s[:,:,z], temp0_s*lambda_s^(n_episodes[z]-1))
-        policy_r = get_policy(Q_r[:,:,z], temp0_r*lambda_r^(n_episodes[z]-1))
+       	policy_s = get_policy(Q_s[:,:,z], max(temp0_s*lambda_s^(n_episodes[z]-1),1f-30))
+        policy_r = get_policy(Q_r[:,:,z], max(temp0_r*lambda_r^(n_episodes[z]-1),1f-30))
         # compute (ex-ante) expected rewards at convergence
         expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s, policy_r)
-        expected_aggregate_reward[z] = expected_reward_s[z] + expected_reward_r[z]  
         # compute best response to opponent's policy at convergence
         optimal_policy_s = get_best_reply_s(policy_r)
         optimal_policy_r = get_best_reply_r(policy_s)
@@ -91,37 +89,59 @@ function extract_data(config, results, best_nash, extracted_data)
 		max_absolute_error[z] = max(absolute_error_s[z], absolute_error_r[z])
         # compute communication metrics
         mutual_information[z] = get_mutual_information(policy_s)
+        # get on path messages
+        off_path_messages = get_off_path_messages(policy_s)
+		n_on_path_messages[z] = n_messages - count(off_path_messages)
+        # compute maximum mass on suboptim messages (actions) across states (messages)
+        mass_on_suboptim_s, mass_on_suboptim_r = get_mass_on_suboptim(policy_s, policy_r, optimal_policy_s, optimal_policy_r)
+        max_mass_on_suboptim_s[z] = maximum(mass_on_suboptim_s)
+    	max_mass_on_suboptim_r[z] = maximum(mass_on_suboptim_r[.!off_path_messages])
+		# check if is a nash
+        max_max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
+        # check if policy is partitional
+        is_partitional[z] = ispartitional(policy_s)
+        # count number of messages that have no synonyms
+        n_effective_messages[z] = get_n_effective_messages(policy_s[:,.!off_path_messages])
     end
 
-	mean_quant(x,α) = mean(x), quantile(x, [α/2, 1-α/2])
-	avg_expected_reward_s = mean_quant(expected_reward_s,1.0-α)
-	avg_expected_reward_r = mean_quant(expected_reward_r,1.0-α)
-	avg_expected_aggregate_reward = mean_quant(expected_aggregate_reward,1.0-α)
-	avg_mutual_information = mean_quant(mutual_information,1.0-α)
-	avg_absolute_error_s = mean_quant(absolute_error_s,1.0-α)
-	avg_absolute_error_r = mean_quant(absolute_error_r,1.0-α)
-	avg_n_episodes = mean_quant(n_episodes,1.0-α)
-	q_max_absolute_error = quantile(max_absolute_error, β)
-
 	i = findfirst(set_biases .== bias)
-	extracted_data["avg_n_episodes"][i] = avg_n_episodes
-	extracted_data["freq_converged"][i] = freq_converged
-	extracted_data["avg_expected_reward_s"][i] = avg_expected_reward_s
-	extracted_data["avg_expected_reward_r"][i] = avg_expected_reward_r
-	extracted_data["avg_expected_aggregate_reward"][i] = avg_expected_aggregate_reward
-	extracted_data["avg_mutual_information"][i] = avg_mutual_information
-	extracted_data["best_expected_reward_s"][i] = best_expected_reward_s
-	extracted_data["best_expected_reward_r"][i] = best_expected_reward_r
-	extracted_data["best_expected_aggregate_reward"][i] = best_expected_aggregate_reward
-	extracted_data["best_mutual_information"][i] = best_mutual_information
-	extracted_data["avg_absolute_error_s"][i] = avg_absolute_error_s
-	extracted_data["avg_absolute_error_r"][i] = avg_absolute_error_r
-	extracted_data["q_max_absolute_error"][i] = q_max_absolute_error
-	extracted_data["babbling_reward_s"][i] = babbling_reward_s
-	extracted_data["babbling_reward_r"][i] = babbling_reward_r
-	extracted_data["babbling_aggregate_reward"][i] = babbling_aggregate_reward
+	extracted_data["n_episodes"][:,i] .= n_episodes
+	extracted_data["is_converged"][:,i] .= is_converged
+	extracted_data["expected_reward_s"][:,i] .= expected_reward_s
+	extracted_data["expected_reward_r"][:,i] .= expected_reward_r
+	extracted_data["mutual_information"][:,i] .= mutual_information
+	extracted_data["absolute_error_s"][:,i] .= absolute_error_s
+	extracted_data["absolute_error_r"][:,i] .= absolute_error_r
+	extracted_data["max_absolute_error"][:,i] .= max_absolute_error
+	extracted_data["n_on_path_messages"][:,i] .= n_on_path_messages
+	extracted_data["max_mass_on_suboptim_s"][:,i] .= max_mass_on_suboptim_s
+	extracted_data["max_mass_on_suboptim_r"][:,i] .= max_mass_on_suboptim_r
+	extracted_data["max_max_mass_on_suboptim"][:,i] .= max_max_mass_on_suboptim
+	extracted_data["is_partitional"][:,i] .= is_partitional
+	extracted_data["n_effective_messages"][:,i] .= n_effective_messages
+	babbling_nash["babbling_reward_s"][i] = babbling_reward_s
+	babbling_nash["babbling_reward_r"][i] = babbling_reward_r
 end
 
+function get_best_nash_equilibria(n_steps)
+	# Compute sender-prefered equilibria for bias in range(0,0.5,n_steps)
+	# only supports n_messages = n_states
+	best_nash = DefaultDict(() -> Array{Float32,1}(undef,n_steps))
+	set_biases_ = range(0,0.5,n_steps)
+	for i in 1:n_steps
+	    print("\rComputing benchmark $i/$n_steps")
+	    flush(stdout)
+		global bias = set_biases_[i]
+		global reward_matrix_s, reward_matrix_r = k .* gen_reward_matrix()
+		best_nash_i = get_best_nash()
+		best_nash["best_expected_reward_s"][i] = best_nash_i["best_expected_reward_s"]
+		best_nash["best_expected_reward_r"][i] = best_nash_i["best_expected_reward_r"]
+		best_nash["best_mutual_information"][i] = best_nash_i["best_mutual_information"]
+		best_nash["n_messages_on_path"][i] = best_nash_i["n_messages_on_path"]
+	end
+	println()
+	return best_nash
+end
 
 # parse terminal config
 const scrpt_config = parse_commandline()
@@ -153,6 +173,7 @@ const subdirs = readdir(dir, join=true)
 const config_ = load(joinpath(subdirs[2],"config.jld2"))	
 const n_simulations = config_["n_simulations"]
 const n_states = config_["n_states"]
+const n_messages = config_["n_messages"]
 const n_actions = config_["n_actions"]
 const T = collect(0:1f0/(n_states-1):1) 
 const A = collect(0:1f0/(n_actions-1):1)
@@ -165,22 +186,27 @@ const temp0_r::Float32 = config_["temp0_r"]
 const lambda_s::Float32 = config_["lambda_s"]
 const lambda_r::Float32 = config_["lambda_r"]
 
-# percent of simulation outcomes to fall into confidence interval
-const α = 0.95
-# quantile for epsilon nash equilibria
-const β = 0.9 
+println("\nInput dir: ", scrpt_config["in_dir"])
 
 function read_data()
 	# main loop, read files in subdirs, extract and process data, save to extracted_data
-	extracted_data = DefaultDict(() -> Array{Any,1}(undef,length(set_biases)))
+	babbling_nash = DefaultDict(() -> Array{Any,1}(undef, length(set_biases)))
+	extracted_data = DefaultDict(() -> Array{Any,2}(undef, n_simulations, length(set_biases)))
+	counter = 0
+	ndirs = count(isdir.(subdirs))
+	if ndirs != length(set_biases)
+		println("Error: incomplete input")
+		exit()
+	end
 	for subdir in subdirs
 		isdir(subdir) || continue
+	    print("\rAnalyzing data $(counter+=1)/$ndirs")
+	    flush(stdout)
 		config = load(joinpath(subdir,"config.jld2"))
 		results = load(joinpath(subdir,"results.jld2"))
-		best_nash = load(joinpath(subdir,"best_nash.jld2"))
-		extract_data(config, results, best_nash, extracted_data)
+		extract_data(config, results, babbling_nash, extracted_data)
 	end
-	extracted_data["best_reply_expected_reward_s"] = getindex.(extracted_data["avg_expected_reward_s"],1) .+ getindex.(extracted_data["avg_absolute_error_s"],1)
-	extracted_data["best_reply_expected_reward_r"] = getindex.(extracted_data["avg_expected_reward_r"],1) .+ getindex.(extracted_data["avg_absolute_error_r"],1)
-	return extracted_data
+	println()
+	best_nash = get_best_nash_equilibria(1001)
+	return extracted_data, best_nash, babbling_nash
 end
