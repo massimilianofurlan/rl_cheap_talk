@@ -88,7 +88,7 @@ const k = config_["factor"]
 const out_dir = config_["out_dir"]
 const config_section = config_["config"]
 
-const set_alpha = range(config["min_alpha"],config["max_alpha"],config["n_alpha"])
+const set_alpha = [config["min_alpha"] + 0.05*(i-1) for i in 1:config["n_alpha"]]
 const set_lambda = [config["min_lambda"]/i for i in 1:config["n_lambda"]]
 
 function modify_config_section(new_values)
