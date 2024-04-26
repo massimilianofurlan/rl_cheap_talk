@@ -31,7 +31,7 @@ function parse_commandline()
         "--n_states", "-n"
             arg_type = Int64
             help = "number of states of the world"
-            default = 11
+            default = 6
             range_tester = x -> x > 0
         "--n_messages", "-m"
             arg_type = Int64
@@ -89,8 +89,7 @@ const out_dir = config_["out_dir"]
 const config_section = config_["config"]
 
 const set_alpha = range(config["min_alpha"],config["max_alpha"],config["n_alpha"])
-const lin_range_n_ep = range(log(0.01)/log(config["min_lambda"]),log(0.01)/log(config["max_lambda"]),config["n_lambda"])
-const set_lambda = round.(0.01.^(1 ./ lin_range_n_ep), digits = 8)
+const set_lambda = [config["min_lambda"]/i for i in 1:config["n_lambda"]]
 
 function modify_config_section(new_values)
     # modify config section with new values
