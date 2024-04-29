@@ -94,7 +94,9 @@ const temp_r = [max(temp0_r * exp(-lambda_r*(t-1)), 1f-30) for t in 1:n_max_epis
 show_experiment_details()
 
 function main()
-    println(stdout, "computing pareto optimal nash equilibrium... ") 
+    println(stdout, "computing nash equilibria... ") 
+    @time set_nash = get_monotone_equilibria()
+    println(stdout, "computing ex-ante (receiver) optimal nash... ") 
     @time best_nash = get_best_nash()
 
     println(stdout, "running the simulation...")    
@@ -117,15 +119,15 @@ function main()
     end
 
     println(stdout, "analyzing outcomes...") 
-    @time results = convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff); 
+    @time results = convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff, set_nash); 
 
     println(stdout, "computing statistics...") 
-    @time statistics = compute_statistics(results)
+    @time statistics = compute_statistics(set_nash, results)
 
-    show_experiment_outcomes(best_nash, statistics)
+    show_experiment_outcomes(set_nash, best_nash, statistics)
 
     println(save_ ? stdout : devnull, "saving data to file...") 
-    @time save__(best_nash, results, statistics, rewards)
+    @time save__(set_nash, best_nash, results, statistics, rewards)
 end
 
 Random.seed!(0)

@@ -140,12 +140,14 @@ function gen_dirs()
     return output_dir, temp_dir
 end
 
-function add_row(rows, statistics, var_name; std = true, text = var_name)
-    format_txt(var) = string(round.(Float64.(var[1]),digits=6), " (", round.(Float64.(var[2]),digits=6),")") 
+function add_row(rows, statistics, var_name; keys_ = ["converged", "not_converged"], quant = false, std = true, text = var_name)
+    format_txt(var::AbstractFloat) = string(round.(Float64.(var[1]),digits=5)) 
+    format_txt(var::Tuple) = string(round.(Float64.(var[1]),digits=5), " (", round.(Float64.(var[2]),digits=6),")") 
+    format_txt(var::AbstractArray) =  string(round.(Float64.(var), digits = 5))
     row::Any = [text]
-    for key in ["converged", "not_converged"]
+    for key in keys_
         if haskey(statistics[key], var_name)
-            cell = std ? format_txt(statistics[key][var_name]) : string(round.(Float64.(statistics[key][var_name]), digits = 5))
+            cell = std ? format_txt(statistics[key][var_name]) : format_txt(statistics[key][var_name][1])
             row = hcat(row, cell)
         else
             row = hcat(row, " -- ")
@@ -154,7 +156,7 @@ function add_row(rows, statistics, var_name; std = true, text = var_name)
     push!(rows, row)
 end
 
-function show_experiment_outcomes(best_nash, statistics)
+function show_experiment_outcomes(set_nash, best_nash, statistics)
     !raw || return nothing
     
     best_nash_header = (["BEST NASH", ""])
@@ -162,7 +164,6 @@ function show_experiment_outcomes(best_nash, statistics)
     push!(best_nash_table, ["n_messages_on_path" best_nash["n_messages_on_path"]])    
     push!(best_nash_table, ["best_expe_rewards_s" round(best_nash["best_expected_reward_s"], digits=4)])
     push!(best_nash_table, ["best_expe_rewards_r" round(best_nash["best_expected_reward_r"], digits=4)])
-    push!(best_nash_table, ["best_expe_aggr_reward" round(best_nash["best_expected_aggregate_reward"], digits=4)])
     push!(best_nash_table, ["best_mutual_info" round(best_nash["best_mutual_information"], digits=4)])
     push!(best_nash_table, ["is_borderline" best_nash["is_borderline"]])
 
@@ -175,7 +176,6 @@ function show_experiment_outcomes(best_nash, statistics)
     push!(statistics_table, ["[REWARD METRICS]" "" ""])
     add_row(statistics_table, statistics, "avg_expected_reward_s")
     add_row(statistics_table, statistics, "avg_expected_reward_r")
-    add_row(statistics_table, statistics, "avg_expected_aggregate_reward", text = "avg_expe_aggr_reward")
     push!(statistics_table, ["[POLICY METRICS]" "" ""])
     add_row(statistics_table, statistics, "avg_mutual_information")
     add_row(statistics_table, statistics, "avg_n_on_path_messages")
@@ -184,25 +184,41 @@ function show_experiment_outcomes(best_nash, statistics)
     push!(statistics_table, ["[EPSILON NASH]" "" ""])
     add_row(statistics_table, statistics, "avg_absolute_error_s", text = "avg_epsilon_s")
     add_row(statistics_table, statistics, "avg_absolute_error_r", text = "avg_epsilon_r")
-    add_row(statistics_table, statistics, "quant_min_absolute_error", std = false, text = "epsilon_nash (.90, .95, 1)")
+    add_row(statistics_table, statistics, "quant_min_absolute_error", text = "epsilon_nash (.90, .95, 1)")
     push!(statistics_table, ["[GAMMA NASH]" "" ""])
-    add_row(statistics_table, statistics, "avg_max_mass_on_suboptim_s", text = "n_messages x avg_gamma_s")
-    add_row(statistics_table, statistics, "avg_max_mass_on_suboptim_r", text = "n_actions x avg_gamma_r")
-    add_row(statistics_table, statistics, "quant_max_mass_on_suboptim", std = false, text = "gamma_nash (.25, .50, 0.75)")
-    add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-3)"; std = false)
+    add_row(statistics_table, statistics, "avg_max_mass_on_suboptim_s", text = " avg_gamma_s")
+    add_row(statistics_table, statistics, "avg_max_mass_on_suboptim_r", text = " avg_gamma_r")
+    add_row(statistics_table, statistics, "quant_max_mass_on_suboptim", text = "gamma_nash (.25, .50, 0.75)")
+    add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-2)"; std = false)
 
     open("$temp_dir/experiment_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,7])
-        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,9,10,14,14,18,19,23])
+        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,6])
+        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,8,9,13,17,18,22])
+    end
+
+    nash_header = (["SET NASH"; [i for i in 1:set_nash["n_nash"]]])
+    nash_table::Any = []
+    push!(nash_table, hcat(["mutual_information" string.(round.(Float64.(set_nash["mutual_information"]), digits=4))...]))
+    push!(nash_table, hcat(["expe_rewards_s" string.(round.(Float64.(set_nash["expected_reward_s"]), digits=4))...]))
+    push!(nash_table, hcat(["expe_rewards_r" string.(round.(Float64.(set_nash["expected_reward_r"]), digits=4))...]))
+    add_row(nash_table, statistics, "freq", std=false, keys_=1:set_nash["n_nash"])
+    add_row(nash_table, statistics, "freq_nash", std=false, text = "freq_nash (max_γ < 1f-2)", keys_=1:set_nash["n_nash"])
+    add_row(nash_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=1:set_nash["n_nash"])
+    add_row(nash_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=1:set_nash["n_nash"])
+
+    open("$temp_dir/nash.txt","w") do io
+        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,4,8])
     end
 
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
+    quiet || run(`cat $temp_dir/nash.txt`)
+
 end
 
 
 # others
 
-function save__(best_nash::Dict, results::Dict, statistics::Dict, rewards::Array{Float32,3})
+function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict, rewards::Array{Float32,3})
     save_ || return nothing
    
     game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type, k], "_") # noise is omitted
@@ -210,6 +226,7 @@ function save__(best_nash::Dict, results::Dict, statistics::Dict, rewards::Array
     settings_key = join([n_simulations, n_max_episodes, convergence_threshold, rtol], "_") # irrelevanf for directory name
    
     save("$temp_dir/config.jld2", config)
+    save("$temp_dir/set_nash.jld2", set_nash)
     save("$temp_dir/best_nash.jld2", best_nash)
     save("$temp_dir/results.jld2", results)    
     !raw && save("$temp_dir/statistics.jld2", statistics)
