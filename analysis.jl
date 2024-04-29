@@ -14,7 +14,6 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
     induced_actions = Array{Float32,3}(undef, n_states, n_actions, n_simulations)
     expected_reward_s = Array{Float32,1}(undef, n_simulations)
     expected_reward_r = Array{Float32,1}(undef, n_simulations)
-    expected_aggregate_reward = Array{Float32,1}(undef, n_simulations)
     absolute_error_s = Array{Float32,1}(undef, n_simulations)
     absolute_error_r = Array{Float32,1}(undef, n_simulations)
     mutual_information = Array{Float32,1}(undef, n_simulations)
@@ -37,7 +36,6 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)
         # compute (ex-ante) expected rewards at convergence
         expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s_, policy_r_)
-        expected_aggregate_reward[z] = expected_reward_s[z] + expected_reward_r[z]  
         # compute best response to opponent's policy at convergence
         optimal_policy_s = get_best_reply_s(policy_r_)
         optimal_policy_r = get_best_reply_r(policy_s_)
@@ -58,16 +56,18 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
         # check if policy is partitional
         is_partitional[z] = ispartitional(policy_s_)
         # count number of messages that have no synonyms
-        n_effective_messages[z] = get_n_effective_messages(policy_s_[:,.!off_path_messages[:,z]])
+        n_effective_messages[z] = count(get_effective_messages(policy_s_[:,.!off_path_messages[:,z]]))
     end
 
     # convert results to dict
-    results = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, expected_aggregate_reward, 
-                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, posterior,
-                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
-    var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, expected_aggregate_reward, 
-                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, posterior, 
-                babbling_reward_s, babbling_reward_r, off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
+    results = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
+                absolute_error_s, absolute_error_r, mutual_information, posterior, babbling_reward_s, babbling_reward_r,
+                off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
+                
+    var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
+                absolute_error_s, absolute_error_r, mutual_information, posterior, babbling_reward_s, babbling_reward_r,
+                off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
+               
     dict_results = Dict(name => value for (name, value) in zip(var_names, results))
     return merge(dict_input,dict_results)
 end
@@ -77,7 +77,7 @@ end
 get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)
 
 # off path messages
-get_off_path_messages(policy_s::Array{Float32,2}; tol = 1f-3) = @fastmath (p_t'*policy_s)' .< tol
+get_off_path_messages(policy_s::Array{Float32,2}; tol = 1f-3) = @fastmath (p_t'*policy_s)' .<= tol
 
 # policy analysis
 
@@ -105,18 +105,18 @@ function ispartitional(policy_s; tol = 1f-3)
     return true
 end
 
-function get_n_effective_messages(policy_s; tol = 1f-3)
+function get_effective_messages(policy_s; tol = 1f-3)
     # count number of messages that have no synonyms
     n_on_path_messages = size(policy_s,2)
-    has_unique_meaning = trues(n_on_path_messages)
+    has_no_synonyms = trues(n_on_path_messages)
     @fastmath @inbounds for message1 in 1:n_on_path_messages-1
-        has_unique_meaning[message1] || continue
+        has_no_synonyms[message1] || continue
         for message2 in message1+1:n_on_path_messages
             all(abs.(policy_s[:, message1] - policy_s[:, message2]) .< tol) || continue
-            has_unique_meaning[message2] = false
+            has_no_synonyms[message2] = false
         end
     end
-    return count(has_unique_meaning)
+    return has_no_synonyms
 end
 
 
