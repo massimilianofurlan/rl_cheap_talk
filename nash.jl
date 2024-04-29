@@ -41,6 +41,23 @@ function get_exante_pareto_optimal()
     return best_policy_s, best_policy_r, N
 end
 
+function is_best_reply(policy, policy_opponent, get_best_reply)
+    # checks if policy is a best reply to policy_opponent
+    # best reply to opponent policy
+    best_reply = get_best_reply(policy_opponent)
+    # compute (bitmap) support of policy and best response to policy_opponent
+    supp_policy, supp_best_reply = (policy .> 0), (best_reply .> 0)
+    # policy is a best response to policy_opponent iff supp(policy) ⊆ supp(best_reply)
+    return all(supp_best_reply - supp_policy .>= 0)
+end
+
+function is_exact_nash(policy_s, policy_r)
+    # checks if (policy_s, policy_r) is an exact equilibrium
+    is_best_reply_s = is_best_reply(policy_s, policy_r, get_best_reply_s)
+    is_best_reply_r = is_best_reply(policy_r, policy_s, get_best_reply_r)
+    return is_best_reply_s && is_best_reply_r
+end
+
 function get_exante_receiver_optimal()
     # get ex-ante receiver optimal equilibrium by scanning over all possible partitional equilibria
     # Frug (2016) shows receiver's optimal equilibrium is partitional
@@ -58,13 +75,9 @@ function get_exante_receiver_optimal()
         I_ = N > 1 ? findall(cut .== 1) : [n_states]                
         I_ = [i > 1 ? I_[i] - I_[i-1] : I_[i] for i in 1:length(I_)]
         N > 1 && push!(I_,n_states - sum(I_))
-        policy_s_ = convert_I_to_policy(I_, N, policy_s = view(policy_s,:,:,thread_idx))    # candidate policy
-        policy_r_ = get_best_reply_r(policy_s_)                                             # candidate policy
-        # check if the sender's policy best replies to the best reply of the receiver
-        policy_s__ = get_best_reply_s(policy_r_)                                            # br to candidate
-        supp_s_, supp_s__= (policy_s_ .> 0), (policy_s__ .> 0)                              # support of candidate and br
-        all(supp_s__ - supp_s_ .>= 0) || continue                                           # if supp(candidate) ⊆ supp(br) -> is nash
-        # if here, (policy_s_, policy_r_) is an equilibrium
+        policy_s_ = convert_I_to_policy(I_, N, policy_s = view(policy_s,:,:,thread_idx))    # sender's candidate policy
+        policy_r_ = get_best_reply_r(policy_s_)                                             # receiver's candidate policy
+        is_best_reply(policy_s_, policy_r_, get_best_reply_s) || continue
         expected_reward_s_, expected_reward_r_ = get_expected_rewards(policy_s_, policy_r_)
         expected_reward_r_ > expected_reward_r[thread_idx] || continue                      # if nash is preferred by receiver continue
         expected_reward_r[thread_idx] = expected_reward_r_
@@ -87,7 +100,6 @@ function get_best_nash()
     best_induced_actions = get_induced_actions(best_policy_s, best_policy_r)
     # get expected rewards
     best_expected_reward_s, best_expected_reward_r = get_expected_rewards(best_policy_s, best_policy_r)
-    best_expected_aggregate_reward = best_expected_reward_s + best_expected_reward_r
     # compute mutual information
     best_mutual_information = get_mutual_information(best_policy_s) 
     best_posterior = get_posterior(best_policy_s)
@@ -95,8 +107,59 @@ function get_best_nash()
     is_borderline = get_N(bias, n_states) != get_N(bias+1e-3, n_states)
 
     # convert pareto optimum variables to dict
-    best_nash = (best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_expected_aggregate_reward, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
-    var_names = @names(best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_expected_aggregate_reward, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
+    best_nash = (best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
+    var_names = @names(best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
     dict_pareto_optimum = Dict(name => value for (name, value) in zip(var_names, best_nash))
     return dict_pareto_optimum
-end 
+end
+
+
+function get_monotone_equilibria()
+    # brute force over space of monotone strategies for senders
+    n_policies_s = 2^(n_states-1)
+    policy_s = Array{Float32,3}(undef,n_states,n_messages,n_policies_s)
+    policy_r = Array{Float32,3}(undef,n_messages,n_actions,n_policies_s)
+    induced_actions = Array{Float32,3}(undef,n_states,n_actions,n_policies_s)
+    expected_reward_s = Array{Float32,1}(undef,n_policies_s)
+    expected_reward_r = Array{Float32,1}(undef,n_policies_s)
+    mutual_information = Array{Float32,1}(undef,n_policies_s)
+    is_nash = zeros(Bool,n_policies_s)
+    for idx in 2^(n_states-1) : -1 : 1
+        cut = digits(idx-1, base=2, pad=(n_states-1))                                   # i-th possible partition
+        N = count(cut.==1) + 1                                                          # number of messages
+        N <= n_messages || continue
+        I_ = N > 1 ? findall(cut .== 1) : [n_states]                
+        I_ = [i > 1 ? I_[i] - I_[i-1] : I_[i] for i in 1:length(I_)]
+        N > 1 && push!(I_,n_states - sum(I_))
+        policy_s_ = convert_I_to_policy(I_, N)                                          # sender's candidate policy
+        policy_r_ = get_best_reply_r(policy_s_)                                         # receiver's candidate policy
+        is_best_reply(policy_s_, policy_r_, get_best_reply_s) || continue                                          
+        # if here, (policy_s_, policy_r_) is an equilibrium
+        policy_s[:,:,idx] .= policy_s_
+        policy_r[:,:,idx] .= policy_r_
+        induced_actions[:,:,idx] .= get_induced_actions(policy_s_,policy_r_)    
+        expected_reward_s[idx], expected_reward_r[idx] = get_expected_rewards(policy_s_, policy_r_)
+        mutual_information[idx] = get_mutual_information(policy_s_)
+        is_nash[idx] = true
+    end
+    policy_s = policy_s[:,:,is_nash]
+    policy_r = policy_r[:,:,is_nash]
+    induced_actions = induced_actions[:,:,is_nash]
+    expected_reward_s = expected_reward_s[is_nash] 
+    expected_reward_r = expected_reward_r[is_nash]
+    mutual_information = mutual_information[is_nash]
+    n_nash = count(is_nash)
+
+    perm = sortperm(-mutual_information)
+    policy_s = policy_s[:,:,perm]
+    policy_r = policy_r[:,:,perm]
+    induced_actions = induced_actions[:,:,perm]
+    expected_reward_s = expected_reward_s[perm]
+    expected_reward_r = expected_reward_r[perm]
+    mutual_information = mutual_information[perm]
+
+    set_nash = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, mutual_information, n_nash, bias)
+    var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, mutual_information, n_nash, bias)
+    dict_nash = Dict(name => value for (name, value) in zip(var_names, set_nash))
+    return dict_nash
+end
