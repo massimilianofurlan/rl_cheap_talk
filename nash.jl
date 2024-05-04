@@ -1,5 +1,5 @@
 
-function get_N(bias, n_states)
+function get_N(bias::AbstractFloat, n_states::Int64)
     # based on Procedure 1 in Frug (2016)
     get_next(x) = max(1, x + ceil((n_states - 1)*4*bias) - 2)
     x = Array{Int,1}(undef, n_states)
@@ -11,7 +11,7 @@ function get_N(bias, n_states)
     return n_states, x
 end
 
-function convert_I_to_policy(I_, N; policy_s = zeros(Float32, n_states, n_messages))
+function convert_I_to_policy(I_::Array{Int64,1}, N::Int64; policy_s = zeros(Float32, n_states, n_messages))
     # convert I_ into a full support policy for the sender 
     policy_s = zeros(Float32, n_states, n_messages)
     for i in 1:length(I_)-1
@@ -19,6 +19,14 @@ function convert_I_to_policy(I_, N; policy_s = zeros(Float32, n_states, n_messag
     end
     policy_s[sum(I_[1:end-1])+1:sum(I_),length(I_):end] .= 1/(n_messages-N+1)
     return policy_s
+end
+
+function convert_partition_to_policy(partition::Array{Int64,1})
+    N = count(partition.==1) + 1
+    I_ = N > 1 ? findall(partition .== 1) : [n_states]                
+    I_ = [i > 1 ? I_[i] - I_[i-1] : I_[i] for i in 1:length(I_)]
+    N > 1 && push!(I_,n_states - sum(I_))
+    policy_s_ = convert_I_to_policy(I_, N)
 end
 
 function get_exante_pareto_optimal()
@@ -41,7 +49,7 @@ function get_exante_pareto_optimal()
     return best_policy_s, best_policy_r, N
 end
 
-function is_best_reply(policy, policy_opponent, get_best_reply)
+function is_best_reply(policy::Array{Float32,2}, policy_opponent::Array{Float32,2}, get_best_reply::Function)
     # checks if policy is a best reply to policy_opponent
     # best reply to opponent policy
     best_reply = get_best_reply(policy_opponent)
@@ -51,7 +59,7 @@ function is_best_reply(policy, policy_opponent, get_best_reply)
     return all(supp_best_reply - supp_policy .>= 0)
 end
 
-function is_exact_nash(policy_s, policy_r)
+function is_exact_nash(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
     # checks if (policy_s, policy_r) is an exact equilibrium
     is_best_reply_s = is_best_reply(policy_s, policy_r, get_best_reply_s)
     is_best_reply_r = is_best_reply(policy_r, policy_s, get_best_reply_r)
@@ -69,17 +77,14 @@ function get_exante_receiver_optimal()
     Threads.@threads for i in 2^(n_states-1)-1 : -1 : 0
         thread_idx = Threads.threadid()
         # construct (partitional) policy for the sender
-        cut = digits(i, base=2, pad=(n_states-1))                                           # i-th possible partition
-        N = count(cut.==1) + 1                                                              # number of messages
+        partition = digits(i, base=2, pad=(n_states-1))                                             # i-th possible partition
+        N = count(partition) + 1                                                                    # number of messages
         N <= n_messages || continue
-        I_ = N > 1 ? findall(cut .== 1) : [n_states]                
-        I_ = [i > 1 ? I_[i] - I_[i-1] : I_[i] for i in 1:length(I_)]
-        N > 1 && push!(I_,n_states - sum(I_))
-        policy_s_ = convert_I_to_policy(I_, N, policy_s = view(policy_s,:,:,thread_idx))    # sender's candidate policy
-        policy_r_ = get_best_reply_r(policy_s_)                                             # receiver's candidate policy
+        policy_s_ = convert_partition_to_policy(partition)                                          # sender's candidate policy
+        policy_r_ = get_best_reply_r(policy_s_)                                                     # receiver's candidate policy
         is_best_reply(policy_s_, policy_r_, get_best_reply_s) || continue
         expected_reward_s_, expected_reward_r_ = get_expected_rewards(policy_s_, policy_r_)
-        expected_reward_r_ > expected_reward_r[thread_idx] || continue                      # if nash is preferred by receiver continue
+        expected_reward_r_ > expected_reward_r[thread_idx] || continue                              # if nash is preferred by receiver continue
         expected_reward_r[thread_idx] = expected_reward_r_
         policy_s[:,:,thread_idx] = copy(policy_s_)
         policy_r[:,:,thread_idx] = copy(policy_r_)
@@ -104,7 +109,7 @@ function get_best_nash()
     best_mutual_information = get_mutual_information(best_policy_s) 
     best_posterior = get_posterior(best_policy_s)
     # check if a marginal change in bias changes the pareto optimal nash equilibrium
-    is_borderline = get_N(bias, n_states) != get_N(bias+1e-3, n_states)
+    is_borderline = get_N(bias, n_states) != get_N(bias+1f-3, n_states)
 
     # convert pareto optimum variables to dict
     best_nash = (best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_mutual_information, best_posterior, n_messages_on_path, is_borderline)
@@ -114,8 +119,10 @@ function get_best_nash()
 end
 
 
-function get_monotone_equilibria()
-    # brute force over space of monotone strategies for senders
+function get_monotone_partitional_equilibria()
+    # brute force over space of monotone partitional strategies for senders
+    # restricting to monotone is wlog ( non-redundancy (Frug, 2016) and simulations converge to monotone )
+    # restricting to partitional excludes some equilibria (that are never ex-ante optimal)
     n_policies_s = 2^(n_states-1)
     policy_s = Array{Float32,3}(undef,n_states,n_messages,n_policies_s)
     policy_r = Array{Float32,3}(undef,n_messages,n_actions,n_policies_s)
@@ -125,14 +132,11 @@ function get_monotone_equilibria()
     mutual_information = Array{Float32,1}(undef,n_policies_s)
     is_nash = zeros(Bool,n_policies_s)
     for idx in 2^(n_states-1) : -1 : 1
-        cut = digits(idx-1, base=2, pad=(n_states-1))                                   # i-th possible partition
-        N = count(cut.==1) + 1                                                          # number of messages
+        partition = digits(idx-1, base=2, pad=(n_states-1))                 # i-th possible partition
+        N = count(partition.==1) + 1                                        # number of messages
         N <= n_messages || continue
-        I_ = N > 1 ? findall(cut .== 1) : [n_states]                
-        I_ = [i > 1 ? I_[i] - I_[i-1] : I_[i] for i in 1:length(I_)]
-        N > 1 && push!(I_,n_states - sum(I_))
-        policy_s_ = convert_I_to_policy(I_, N)                                          # sender's candidate policy
-        policy_r_ = get_best_reply_r(policy_s_)                                         # receiver's candidate policy
+        policy_s_ = convert_partition_to_policy(partition)                  # sender's candidate policy
+        policy_r_ = get_best_reply_r(policy_s_)                             # receiver's candidate policy
         is_best_reply(policy_s_, policy_r_, get_best_reply_s) || continue                                          
         # if here, (policy_s_, policy_r_) is an equilibrium
         policy_s[:,:,idx] .= policy_s_
