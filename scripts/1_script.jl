@@ -29,7 +29,7 @@ function parse_commandline()
         "--n_states", "-n"
             arg_type = Int64
             help = "number of states of the world"
-            default = 11
+            default = 6
             range_tester = x -> x > 0
         "--n_messages", "-m"
             arg_type = Int64
