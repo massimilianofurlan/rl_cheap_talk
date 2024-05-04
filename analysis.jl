@@ -1,6 +1,5 @@
 
 # convergence analysis
-using Plots
 function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
     # analyze experiments at convergence 
 
