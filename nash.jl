@@ -78,7 +78,7 @@ function get_exante_receiver_optimal()
         thread_idx = Threads.threadid()
         # construct (partitional) policy for the sender
         partition = digits(i, base=2, pad=(n_states-1))                                             # i-th possible partition
-        N = count(partition) + 1                                                                    # number of messages
+        N = count(partition.==1) + 1                                                                    # number of messages
         N <= n_messages || continue
         policy_s_ = convert_partition_to_policy(partition)                                          # sender's candidate policy
         policy_r_ = get_best_reply_r(policy_s_)                                                     # receiver's candidate policy
