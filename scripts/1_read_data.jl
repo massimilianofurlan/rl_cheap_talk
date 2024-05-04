@@ -18,30 +18,30 @@ include(joinpath(pwd(),"nash.jl"))
 
 # functions
 
-function parse_commandline()
+function parse_commandline(default_input, default_step_bias)
     arg_settings = ArgParseSettings(allow_ambiguous_opts=true)
     @add_arg_table! arg_settings begin
         # GAME SETTINGS
         "--in_dir", "-i"
             arg_type = String
             help = "input directory"
-            default = "out_basecase"
+            default = default_input
         "--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
-            default = 0.005f0
+            default = default_step_bias
     end
     parsed_args = parse_args(arg_settings)
     return parsed_args
 end
 
-function extract_data(config, results, babbling_nash, extracted_data)
+function extract_data(config, results, babbling_nash, extracted_data, policies)
 	# extract and process data from data structures
 
 	# read from files, some variables must be global
 	global bias = config["bias"]
 	global reward_matrix_s, reward_matrix_r = k .* gen_reward_matrix()
-
+	
 	babbling_action = argmax(reward_matrix_r*p_t)
 	babbling_reward_s::Float32 = p_t'reward_matrix_s[babbling_action,:]
 	babbling_reward_r::Float32 = p_t'reward_matrix_r[babbling_action,:]
@@ -54,11 +54,14 @@ function extract_data(config, results, babbling_nash, extracted_data)
 	# compute is_converged bool and frequence
     is_converged = n_episodes .< n_max_episodes
     n_converged = count(is_converged)
+    n_converged == n_simulations || exit() # failsafe
 
 	# preallocate array
+    policy_s = Array{Float32,3}(undef, n_states, n_messages, n_converged)
+    policy_r = Array{Float32,3}(undef, n_messages, n_actions, n_converged)
+    induced_actions = Array{Float32,3}(undef, n_states, n_actions, n_converged)
     expected_reward_s = Array{Float32,1}(undef, n_converged)
     expected_reward_r = Array{Float32,1}(undef, n_converged)
-    expected_aggregate_reward = Array{Float32,1}(undef, n_converged)
     absolute_error_s = Array{Float32,1}(undef, n_converged)
     absolute_error_r = Array{Float32,1}(undef, n_converged)
     max_absolute_error = Array{Float32,1}(undef, n_converged)
@@ -73,38 +76,43 @@ function extract_data(config, results, babbling_nash, extracted_data)
 	Threads.@threads for z in 1:n_converged
 		is_converged[z] == true || continue
         # get policies at convergence
-       	policy_s = get_policy(Q_s[:,:,z], max(temp0_s*lambda_s^(n_episodes[z]-1),1f-30))
-        policy_r = get_policy(Q_r[:,:,z], max(temp0_r*lambda_r^(n_episodes[z]-1),1f-30))
+       	policy_s_ = get_policy(Q_s[:,:,z], max(temp0_s*lambda_s^(n_episodes[z]-1),1f-30))
+        policy_r_ = get_policy(Q_r[:,:,z], max(temp0_r*lambda_r^(n_episodes[z]-1),1f-30))
+        policy_s[:,:, z], policy_r[:,:, z] = order_policies(policy_s_, policy_r_)
+        # compute induced actions at convergence
+        induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)       
         # compute (ex-ante) expected rewards at convergence
-        expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s, policy_r)
+        expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s_, policy_r_)
         # compute best response to opponent's policy at convergence
-        optimal_policy_s = get_best_reply_s(policy_r)
-        optimal_policy_r = get_best_reply_r(policy_s)
+        optimal_policy_s = get_best_reply_s(policy_r_)
+        optimal_policy_r = get_best_reply_r(policy_s_)
         # compute expected rewards by best responding to opponent
-        optimal_reward_s, _ = get_expected_rewards(optimal_policy_s, policy_r)
-        _, optimal_reward_r = get_expected_rewards(policy_s, optimal_policy_r)
+        optimal_reward_s, _ = get_expected_rewards(optimal_policy_s, policy_r_)
+        _, optimal_reward_r = get_expected_rewards(policy_s_, optimal_policy_r)
         # compute absolute expected error by (possibly) not best responding to opponent
         absolute_error_s[z] = optimal_reward_s - expected_reward_s[z] 
         absolute_error_r[z] = optimal_reward_r - expected_reward_r[z]
 		max_absolute_error[z] = max(absolute_error_s[z], absolute_error_r[z])
         # compute communication metrics
-        mutual_information[z] = get_mutual_information(policy_s)
+        mutual_information[z] = get_mutual_information(policy_s_)
         # get on path messages
-        off_path_messages = get_off_path_messages(policy_s)
+        off_path_messages = get_off_path_messages(policy_s_)
 		n_on_path_messages[z] = n_messages - count(off_path_messages)
         # compute maximum mass on suboptim messages (actions) across states (messages)
-        mass_on_suboptim_s, mass_on_suboptim_r = get_mass_on_suboptim(policy_s, policy_r, optimal_policy_s, optimal_policy_r)
+        mass_on_suboptim_s, mass_on_suboptim_r = get_mass_on_suboptim(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
         max_mass_on_suboptim_s[z] = maximum(mass_on_suboptim_s)
     	max_mass_on_suboptim_r[z] = maximum(mass_on_suboptim_r[.!off_path_messages])
 		# check if is a nash
         max_max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
         # check if policy is partitional
-        is_partitional[z] = ispartitional(policy_s)
+        is_partitional[z] = ispartitional(policy_s_)
         # count number of messages that have no synonyms
-        n_effective_messages[z] = get_n_effective_messages(policy_s[:,.!off_path_messages])
+        n_effective_messages[z] = count(get_effective_messages(policy_s_[:,.!off_path_messages]))
     end
 
 	i = findfirst(set_biases .== bias)
+	policies["s"][i] = policy_s
+	policies["r"][i] = policy_r
 	extracted_data["n_episodes"][:,i] .= n_episodes
 	extracted_data["is_converged"][:,i] .= is_converged
 	extracted_data["expected_reward_s"][:,i] .= expected_reward_s
@@ -123,10 +131,11 @@ function extract_data(config, results, babbling_nash, extracted_data)
 	babbling_nash["babbling_reward_r"][i] = babbling_reward_r
 end
 
-function get_best_nash_equilibria(n_steps)
+function get_equilibria(n_steps)
 	# Compute sender-prefered equilibria for bias in range(0,0.5,n_steps)
 	# only supports n_messages = n_states
 	best_nash = DefaultDict(() -> Array{Float32,1}(undef,n_steps))
+	set_nash = DefaultDict(() -> Array{Array{Float32,1},1}(undef,n_steps))
 	set_biases_ = range(0,0.5,n_steps)
 	for i in 1:n_steps
 	    print("\rComputing benchmark $i/$n_steps")
@@ -134,79 +143,75 @@ function get_best_nash_equilibria(n_steps)
 		global bias = set_biases_[i]
 		global reward_matrix_s, reward_matrix_r = k .* gen_reward_matrix()
 		best_nash_i = get_best_nash()
+		set_nash_i = get_monotone_partitional_equilibria()
 		best_nash["best_expected_reward_s"][i] = best_nash_i["best_expected_reward_s"]
 		best_nash["best_expected_reward_r"][i] = best_nash_i["best_expected_reward_r"]
 		best_nash["best_mutual_information"][i] = best_nash_i["best_mutual_information"]
-		best_nash["n_messages_on_path"][i] = best_nash_i["n_messages_on_path"]
+		set_nash["expected_reward_s"][i] = set_nash_i["expected_reward_s"]
+		set_nash["expected_reward_r"][i] = set_nash_i["expected_reward_r"]
+		set_nash["mutual_information"][i] = set_nash_i["mutual_information"]
 	end
 	println()
-	return best_nash
+	return set_nash, best_nash
 end
 
-# parse terminal config
-const scrpt_config = parse_commandline()
-# define set of biases 
-const set_biases = Float32.(collect(0.00f0:scrpt_config["step_bias"]:0.5f0))
-# define input dir 
-const input_dir = joinpath(pwd(), scrpt_config["in_dir"])
-
-# navigate to relevant subdir 
-dirs = readdir(input_dir, join = true)
-dirs = dirs[isdir.(dirs)]
-dirs = setdiff(dirs,joinpath.(input_dir,["pdf", "temp", "tikz"]))
-dir_id = 1
-if length(dirs) > 1
-	println("list of directories: ")
-	for (dir_id, dir) in enumerate(dirs)
-		println(dir_id,": ", split(dir,"/")[end])
+function order_policies(policy_s, policy_r)
+	m_= 1
+	for t in 1:n_states
+		for m in argmax_(policy_s[t,:])			# index of most frequently sent message in state t
+			m < m_ && continue				
+			temp = policy_s[:,m_]
+			policy_s[:,m_] = policy_s[:,m]
+			policy_s[:,m] = temp
+			temp = policy_r[m_,:]
+			policy_r[m_,:] = policy_r[m,:]
+			policy_r[m,:] = temp
+			m_ += 1
+		end
 	end
-	while true
-		print("select directory: ")
-		global dir_id = parse(Int, readline())
-		dir_id in keys(dirs) && break
-	end
+	return policy_s, policy_r
 end
-dir = dirs[dir_id]
-const subdirs = readdir(dir, join=true)
 
-# read configs that remain constant over all batches of simulations 
-const config_ = load(joinpath(subdirs[2],"config.jld2"))	
-const n_simulations = config_["n_simulations"]
-const n_states = config_["n_states"]
-const n_messages = config_["n_messages"]
-const n_actions = config_["n_actions"]
-const T = collect(0:1f0/(n_states-1):1) 
-const A = collect(0:1f0/(n_actions-1):1)
-const loss_type = config_["loss"]
-const k::Float32 = config_["factor"]
-const dist_type = config_["dist"]
-const p_t = gen_distribution()
-const temp0_s::Float32 = config_["temp0_s"]
-const temp0_r::Float32 = config_["temp0_r"]
-const lambda_s::Float32 = config_["lambda_s"]
-const lambda_r::Float32 = config_["lambda_r"]
 
-println("\nInput dir: ", scrpt_config["in_dir"])
-
-function read_data()
+function read_data(dir)
 	# main loop, read files in subdirs, extract and process data, save to extracted_data
-	babbling_nash = DefaultDict(() -> Array{Any,1}(undef, length(set_biases)))
-	extracted_data = DefaultDict(() -> Array{Any,2}(undef, n_simulations, length(set_biases)))
-	counter = 0
-	ndirs = count(isdir.(subdirs))
+	subdirs = readdir(dir, join=true)	
+	subdirs = subdirs[isdir.(subdirs)]
+	ndirs = length(subdirs)
 	if ndirs != length(set_biases)
 		println("Error: incomplete input")
-		exit()
+		return nothing, nothing, nothing, nothing
 	end
+
+	# read configs that remain constant over all batches of simulations 
+	global config_ = load(joinpath(subdirs[2],"config.jld2"))	
+	global n_simulations = config_["n_simulations"]
+	global n_states = config_["n_states"]
+	global n_messages = config_["n_messages"]
+	global n_actions = config_["n_actions"]
+	global T = collect(0:1f0/(n_states-1):1) 
+	global A = collect(0:1f0/(n_actions-1):1)
+	global loss_type = config_["loss"]
+	global k = Float32(config_["factor"])
+	global dist_type = config_["dist"]
+	global p_t = gen_distribution()
+	global temp0_s = Float32(config_["temp0_s"])
+	global temp0_r = Float32(config_["temp0_r"])
+	global lambda_s = Float32(config_["lambda_s"])
+	global lambda_r = Float32(config_["lambda_r"])
+
+	babbling_nash = DefaultDict(() -> Array{Any,1}(undef, length(set_biases)))
+	extracted_data = DefaultDict(() -> Array{Any,2}(undef, n_simulations, length(set_biases)))
+	policies = DefaultDict(() -> Array{Array{Float32,3},1}(undef, length(set_biases)))
+	counter = 0
 	for subdir in subdirs
 		isdir(subdir) || continue
 	    print("\rAnalyzing data $(counter+=1)/$ndirs")
 	    flush(stdout)
 		config = load(joinpath(subdir,"config.jld2"))
 		results = load(joinpath(subdir,"results.jld2"))
-		extract_data(config, results, babbling_nash, extracted_data)
+		extract_data(config, results, babbling_nash, extracted_data, policies)
 	end
 	println()
-	best_nash = get_best_nash_equilibria(1001)
-	return extracted_data, best_nash, babbling_nash
+	return config_, extracted_data, babbling_nash, policies
 end
