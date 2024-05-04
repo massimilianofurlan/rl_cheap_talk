@@ -1,6 +1,9 @@
 
+# load libraries
 using ArgParse
 using TOML
+using PrettyTables
+using JLD2
 
 macro names(arg...) string.(arg) end
 
@@ -140,10 +143,11 @@ function gen_dirs()
     return output_dir, temp_dir
 end
 
+format_txt(var::AbstractFloat) = string(round.(Float64.(var[1]),digits=5)) 
+format_txt(var::Tuple) = string(round.(Float64.(var[1]),digits=5), " (", round.(Float64.(var[2]),digits=6),")") 
+format_txt(var::AbstractArray) =  string(round.(Float64.(var), digits = 5))
+
 function add_row(rows, statistics, var_name; keys_ = ["converged", "not_converged"], quant = false, std = true, text = var_name)
-    format_txt(var::AbstractFloat) = string(round.(Float64.(var[1]),digits=5)) 
-    format_txt(var::Tuple) = string(round.(Float64.(var[1]),digits=5), " (", round.(Float64.(var[2]),digits=6),")") 
-    format_txt(var::AbstractArray) =  string(round.(Float64.(var), digits = 5))
     row::Any = [text]
     for key in keys_
         if haskey(statistics[key], var_name)
@@ -162,9 +166,9 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     best_nash_header = (["BEST NASH", ""])
     best_nash_table::Any = []
     push!(best_nash_table, ["n_messages_on_path" best_nash["n_messages_on_path"]])    
+    push!(best_nash_table, ["best_mutual_info" round(best_nash["best_mutual_information"], digits=4)])    
     push!(best_nash_table, ["best_expe_rewards_s" round(best_nash["best_expected_reward_s"], digits=4)])
     push!(best_nash_table, ["best_expe_rewards_r" round(best_nash["best_expected_reward_r"], digits=4)])
-    push!(best_nash_table, ["best_mutual_info" round(best_nash["best_mutual_information"], digits=4)])
     push!(best_nash_table, ["is_borderline" best_nash["is_borderline"]])
 
     statistics_header = (["", "CONVERGED", "NOT CONVERGED"])
@@ -190,28 +194,50 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(statistics_table, statistics, "avg_max_mass_on_suboptim_r", text = " avg_gamma_r")
     add_row(statistics_table, statistics, "quant_max_mass_on_suboptim", text = "gamma_nash (.25, .50, 0.75)")
     add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-2)"; std = false)
-
     open("$temp_dir/experiment_outcomes.txt","w") do io
         pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,6])
         pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,8,9,13,17,18,22])
     end
 
-    nash_header = (["SET NASH"; [i for i in 1:set_nash["n_nash"]]])
+    nash_idxs = (1:set_nash["n_nash"]...,0)
+    nash_header = (["SET NASH"; nash_idxs...])
     nash_table::Any = []
-    push!(nash_table, hcat(["mutual_information" string.(round.(Float64.(set_nash["mutual_information"]), digits=4))...]))
-    push!(nash_table, hcat(["expe_rewards_s" string.(round.(Float64.(set_nash["expected_reward_s"]), digits=4))...]))
-    push!(nash_table, hcat(["expe_rewards_r" string.(round.(Float64.(set_nash["expected_reward_r"]), digits=4))...]))
-    add_row(nash_table, statistics, "freq", std=false, keys_=1:set_nash["n_nash"])
-    add_row(nash_table, statistics, "freq_nash", std=false, text = "freq_nash (max_γ < 1f-2)", keys_=1:set_nash["n_nash"])
-    add_row(nash_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=1:set_nash["n_nash"])
-    add_row(nash_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=1:set_nash["n_nash"])
-
-    open("$temp_dir/nash.txt","w") do io
+    push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_txt(statistics[0]["avg_mutual_information"])]))
+    push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_txt(statistics[0]["avg_expected_reward_s"])]))
+    push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_txt(statistics[0]["avg_expected_reward_r"])]))
+    add_row(nash_table, statistics, "freq", std=false, keys_=nash_idxs)
+    add_row(nash_table, statistics, "freq_nash", std=false, text = "freq_nash (max_γ < 1f-2)", keys_=nash_idxs)
+    add_row(nash_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=nash_idxs)
+    add_row(nash_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=nash_idxs)
+    open("$temp_dir/nash_outcomes.txt","w") do io
         pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,4,8])
     end
 
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
-    quiet || run(`cat $temp_dir/nash.txt`)
+    quiet || run(`cat $temp_dir/nash_outcomes.txt`)
+
+    open("$temp_dir/set_nash.txt", "w") do io
+        write(io, "List of non-redundant monotone partitional equilibria (Frug, 2016) ordered from most informative to least informative.")
+        for nash_idx in 1:set_nash["n_nash"]
+            write(io, "\n\n\nEQUILIBRIUM $nash_idx:")
+            write(io, "\n\nEx-ante Expected Reward Sender: \t$(set_nash["expected_reward_s"][nash_idx])")
+            write(io, "\nEx-ante Expected Reward Receiver: \t$(set_nash["expected_reward_r"][nash_idx])")
+            write(io, "\nMutual Information: \t\t\t$(set_nash["mutual_information"][nash_idx])")
+            write(io, "\n\nPolicy Sender: ")
+            policy_s = set_nash["policy_s"][:, end:-1:1, nash_idx]'
+            replace_zero_policy_s = [x == 0 ? "" : x for x in policy_s]
+            show(io, "text/plain", replace_zero_policy_s)
+            write(io, "\n\nPolicy Receiver: ")
+            policy_r = set_nash["policy_r"][:, end:-1:1, nash_idx]'
+            replace_zero_policy_r = [x == 0 ? "" : x for x in policy_r]
+            show(io, "text/plain", replace_zero_policy_r)
+            write(io, "\n\nInduced Actions: ")
+            induced_actions = set_nash["induced_actions"][:, end:-1:1, nash_idx]'
+            replace_zero_induced_actions = [x == 0 ? "" : x for x in induced_actions]
+            show(io, "text/plain", replace_zero_induced_actions)
+        end
+    end
+
 
 end
 

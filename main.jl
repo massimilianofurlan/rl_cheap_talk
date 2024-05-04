@@ -1,7 +1,5 @@
 
 # load libraries
-using JLD2
-using PrettyTables
 using ProgressMeter
 using Random
 using LoopVectorization
@@ -95,7 +93,7 @@ show_experiment_details()
 
 function main()
     println(stdout, "computing nash equilibria... ") 
-    @time set_nash = get_monotone_equilibria()
+    @time set_nash = get_monotone_partitional_equilibria()
     println(stdout, "computing ex-ante (receiver) optimal nash... ") 
     @time best_nash = get_best_nash()
 
@@ -119,7 +117,7 @@ function main()
     end
 
     println(stdout, "analyzing outcomes...") 
-    @time results = convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff, set_nash); 
+    @time results = convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff); 
 
     println(stdout, "computing statistics...") 
     @time statistics = compute_statistics(set_nash, results)
