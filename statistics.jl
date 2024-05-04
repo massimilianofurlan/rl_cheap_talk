@@ -21,8 +21,8 @@ function compute_statistics(set_nash, results)
     # assign nash id 
     nash_ids = mapslices(x -> (idx = findfirst(all(abs.(nash_induced_actions .- x) .< 0.01, dims=1:2)[:]); idx === nothing ? 0 : idx), induced_actions, dims=1:2)[:]
     # compute statistics for each nash_id separately (only converged sessions)
-    statistics_nash = Dict(i => Dict{String, Any}() for i in 1:n_nash)
-    for nash_id in 1:n_nash
+    statistics_nash = Dict(i => Dict{String, Any}() for i in 0:n_nash)
+    for nash_id in 0:n_nash
         is_nash_id = nash_ids .== nash_id
         statistics_nash[nash_id] = compute_group_statistics(results, is_nash_id)
     end
