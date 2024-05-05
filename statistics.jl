@@ -6,25 +6,26 @@ function compute_statistics(set_nash, results)
     raw && return Dict()
 
     # get sessions that have converged
-    is_converged = results["n_episodes"] .< n_max_episodes
+    is_converged = results["is_converged"]
+    # get sessions that have converged to a γ-nash
+    is_nash = is_converged .& results["is_nash"]
 
     # compute statistics for converged and not converged sessions separately
     statistics_converged = compute_group_statistics(results, is_converged)
     statistics_not_converged = compute_group_statistics(results, .!is_converged) 
 
+    # get set of nash equilibria
+    nash_induced_actions, n_nash = set_nash["induced_actions"], set_nash["n_nash"]
+    # get induced actions
+    induced_actions = results["induced_actions"]
 
-    # unpack set of nash equilibria and induced actions a convergence
-    nash_induced_actions = set_nash["induced_actions"]
-    n_nash = set_nash["n_nash"]
-    induced_actions = results["induced_actions"][:,:,is_converged]
-
-    # assign nash id 
-    nash_ids = mapslices(x -> (idx = findfirst(all(abs.(nash_induced_actions .- x) .< 0.01, dims=1:2)[:]); idx === nothing ? 0 : idx), induced_actions, dims=1:2)[:]
+    # assign nash id
+    nash_ids = mapslices(x -> (idx = findfirst(all(abs.(nash_induced_actions .- x) .< ptol, dims=1:2)[:]); idx === nothing ? 0 : idx), induced_actions, dims=1:2)[:]
+    nash_ids[.!is_nash] .= 0
     # compute statistics for each nash_id separately (only converged sessions)
     statistics_nash = Dict(i => Dict{String, Any}() for i in 0:n_nash)
     for nash_id in 0:n_nash
-        is_nash_id = nash_ids .== nash_id
-        statistics_nash[nash_id] = compute_group_statistics(results, is_nash_id)
+        statistics_nash[nash_id] = compute_group_statistics(results, nash_ids .== nash_id)
     end
 
     dict_statistics = Dict("converged" => statistics_converged, 
@@ -47,11 +48,13 @@ function compute_group_statistics(results, group)
     absolute_error_s = results["absolute_error_s"][group]
     absolute_error_r = results["absolute_error_r"][group]
     mutual_information = results["mutual_information"][group]
-    off_path_messages = results["off_path_messages"][:,group]
-    mass_on_suboptim_s = results["mass_on_suboptim_s"][:,group]
-    mass_on_suboptim_r = results["mass_on_suboptim_r"][:,group]
-    is_partitional = results["is_partitional"][group]
+    n_off_path_messages = results["n_off_path_messages"][group]
+    max_mass_on_suboptim_s = results["max_mass_on_suboptim_s"][group]
+    max_mass_on_suboptim_r = results["max_mass_on_suboptim_r"][group]
+    max_mass_on_suboptim = results["max_mass_on_suboptim"][group]
     n_effective_messages = results["n_effective_messages"][group]
+    is_partitional = results["is_partitional"][group]
+    is_nash = results["is_nash"][group]
 
     # average episodes played, frequence in group
     freq = count(group) / n_simulations
@@ -66,7 +69,7 @@ function compute_group_statistics(results, group)
     # average mutual info
     avg_mutual_information = mean_std(mutual_information)
     # on-path and off-path messages
-    avg_n_on_path_messages = mean_std(n_messages .- count(off_path_messages, dims=1))
+    avg_n_on_path_messages = mean_std(n_messages .- n_off_path_messages)
     # number of messages with no sysnonims
     avg_n_effective_messages = mean_std(n_effective_messages)
     # freq partitional policy 
@@ -76,18 +79,13 @@ function compute_group_statistics(results, group)
     min_absolute_error = min.(absolute_error_s,absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
     quant_min_absolute_error = quantile(min_absolute_error, 1.0 .- [0.9,0.95,1])  # value of ϵ that makes 90, 95 and 100% of simulation an ϵ-approximate equilibrium
    
-    # gamma
-    max_mass_on_suboptim_s = maximum(mass_on_suboptim_s, dims=1)[:]
-    max_mass_on_suboptim_r = maximum(.!off_path_messages .* mass_on_suboptim_r, dims=1)[:]
-    # average gamma (action adjusted)
+    # average gamma
     avg_max_mass_on_suboptim_s = mean_std(max_mass_on_suboptim_s) 
     avg_max_mass_on_suboptim_r = mean_std(max_mass_on_suboptim_r) 
     # gamma-nash
-    max_mass_on_suboptim = max.(max_mass_on_suboptim_s, max_mass_on_suboptim_r)
     quant_max_mass_on_suboptim = quantile(max_mass_on_suboptim, [0.25,0.5,0.75])
-    
-    # exact nash (γ .< 1f-3)
-    freq_nash = count(max_mass_on_suboptim .< 1f-2) / n_simulations
+    # frequence (γ < 1f-2)-nash 
+    freq_nash = count(is_nash) / n_group
 
     statistics = (group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, avg_n_on_path_messages, avg_n_effective_messages, 

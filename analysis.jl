@@ -20,10 +20,16 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
     optimal_reward_r = Array{Float32,1}(undef, n_simulations)
     posterior = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
     off_path_messages = Array{Bool,2}(undef, n_messages, n_simulations)
+    n_off_path_messages = Array{Int64,1}(undef, n_simulations)
+    n_effective_messages = Array{Int64,1}(undef, n_simulations)
     mass_on_suboptim_s = Array{Float32,2}(undef, n_states, n_simulations)
     mass_on_suboptim_r = Array{Float32,2}(undef, n_messages, n_simulations)
+    max_mass_on_suboptim_s = Array{Float32,1}(undef, n_simulations)
+    max_mass_on_suboptim_r = Array{Float32,1}(undef, n_simulations)
+    max_mass_on_suboptim = Array{Float32,1}(undef, n_simulations)
     is_partitional = Array{Bool,1}(undef, n_simulations)
-    n_effective_messages = Array{Int64,1}(undef, n_simulations)
+    is_converged = Array{Bool,1}(undef, n_simulations)
+    is_nash = Array{Bool,1}(undef, n_simulations)
 
     Threads.@threads for z in 1:n_simulations
         # get policies at convergence
@@ -50,22 +56,33 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
         posterior[:,:,z] = get_posterior(policy_s_)
         # get off path messages
         off_path_messages[:,z] = get_off_path_messages(policy_s_)
-        # compute mass on suboptim messages (actions) for each state (message)
-        mass_on_suboptim_s[:,z], mass_on_suboptim_r[:,z] = get_mass_on_suboptim(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
-        # check if policy is partitional
-        is_partitional[z] = ispartitional(policy_s_)
+        # count number of messages that are off-path
+        n_off_path_messages[z] = count(off_path_messages[:,z])
         # count number of messages that have no synonyms
         n_effective_messages[z] = count(get_effective_messages(policy_s_[:,.!off_path_messages[:,z]]))
+        # compute mass on suboptim messages (actions) for each state (message)
+        mass_on_suboptim_s[:,z], mass_on_suboptim_r[:,z] = get_mass_on_suboptim(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
+        # check if is a γ-nash
+        max_mass_on_suboptim_s[z] = maximum(mass_on_suboptim_s[:,z])
+        max_mass_on_suboptim_r[z] = maximum(mass_on_suboptim_r[.!off_path_messages[:,z],z])
+        max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
+        is_nash[z] = max_mass_on_suboptim[z] < gtol
+        # check if policy is partitional
+        is_partitional[z] = ispartitional(policy_s_)
+        # check if agents have converged 
+        is_converged[z] = n_episodes[z] < n_max_episodes
     end
 
     # convert results to dict
     results = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
                 absolute_error_s, absolute_error_r, mutual_information, posterior, babbling_reward_s, babbling_reward_r,
-                off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
+                off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
+                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged)
                 
     var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
                 absolute_error_s, absolute_error_r, mutual_information, posterior, babbling_reward_s, babbling_reward_r,
-                off_path_messages, mass_on_suboptim_s, mass_on_suboptim_r, is_partitional, n_effective_messages)
+                off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
+                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged)
                
     dict_results = Dict(name => value for (name, value) in zip(var_names, results))
     return merge(dict_input,dict_results)
@@ -76,7 +93,7 @@ end
 get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)
 
 # off path messages
-get_off_path_messages(policy_s::Array{Float32,2}; tol::Float32 = 1f-3) = @fastmath (p_t'*policy_s)' .<= tol
+get_off_path_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol) = @fastmath (p_t'*policy_s)' .<= tol
 
 # policy analysis
 
@@ -91,7 +108,7 @@ function get_mass_on_suboptim(policy_s::Array{Float32,2}, policy_r::Array{Float3
     return mass_on_suboptim_s, mass_on_suboptim_r
 end
 
-function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = 1f-3)
+function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = ptol)
     # check if policy of the sender is partitional 
     supp_policy_s = (policy_s .> tol)
     @fastmath @inbounds for message in 1:n_messages-1
@@ -104,7 +121,7 @@ function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = 1f-3)
     return true
 end
 
-function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = 1f-3)
+function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol)
     # count number of messages that have no synonyms
     n_on_path_messages = size(policy_s,2)
     has_no_synonyms = trues(n_on_path_messages)

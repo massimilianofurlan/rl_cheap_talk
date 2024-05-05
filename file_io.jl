@@ -196,7 +196,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     end
 
     nash_idxs = (1:set_nash["n_nash"]...,0)
-    nash_header = (["SET NASH"; nash_idxs...])
+    nash_header = (["NASH"; nash_idxs...])
     nash_table::Any = []
     push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_entry(statistics[0],"avg_mutual_information")]))
     push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_entry(statistics[0],"avg_expected_reward_s")]))
@@ -206,7 +206,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=nash_idxs)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=nash_idxs)
     open("$temp_dir/nash_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,4,8])
+        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,4,5,8])
     end
 
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)

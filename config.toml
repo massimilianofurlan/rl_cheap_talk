@@ -13,8 +13,6 @@ lambda_s = 0.000005
 lambda_r = 0.000005
 temp0_s = 0.1
 temp0_r = 0.1
-# tolerance
-rtol = 0.001
 
 
 # BASE-CASE CONFIGURATION
@@ -32,8 +30,6 @@ lambda_s = 0.000005
 lambda_r = 0.000005
 temp0_s = 0.1
 temp0_r = 0.1
-# tolerance
-rtol = 0.001
 
 
 # BASECASE W/ LESS EXPLORATION
@@ -51,8 +47,6 @@ lambda_s = 0.00001
 lambda_r = 0.00001
 temp0_s = 0.1
 temp0_r = 0.1
-# tolerance
-rtol = 0.001
 
 
 # BASECASE W/ MORE EXPLORATION
@@ -66,12 +60,10 @@ q_init = "random"
 alpha_s = 0.10
 alpha_r = 0.10
 # exploration decay
-lambda_s = 0.0000025
-lambda_r = 0.0000025
+lambda_s = 0.000002
+lambda_r = 0.000002
 temp0_s = 0.1
 temp0_r = 0.1
-# tolerance
-rtol = 0.001
 
 
 # GRID SEARCH CONFIGURATION
@@ -89,6 +81,4 @@ lambda_s = 0.000005
 lambda_r = 0.000005
 temp0_s = 0.1
 temp0_r = 0.1
-# tolerance
-rtol = 0.001
 

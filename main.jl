@@ -72,8 +72,6 @@ const n_simulations = config["n_simulations"]
 const n_max_episodes = config["n_max_episodes"]
 # convergence requirement
 const convergence_threshold = config["convergence_threshold"]
-# convergence tolerance
-const rtol::Float32 = config["rtol"]
 
 # initialization of Q-matrices
 const q_init = config["q_init"]
@@ -88,6 +86,14 @@ const temp0_r::Float32 = config["temp0_r"]
 # exploration decay
 const temp_s = [max(temp0_s * exp(-lambda_s*(t-1)), 1f-30) for t in 1:n_max_episodes]
 const temp_r = [max(temp0_r * exp(-lambda_r*(t-1)), 1f-30) for t in 1:n_max_episodes]
+
+# tolerance on convergence of policies
+const rtol = 0.001f0
+# tolerance on probabilities (off-path messages, partitional, effective messages)
+const ptol = 0.001f0
+# tolerance on gamma-nash (gamma < gtol)
+const gtol = 0.01f0
+
 
 show_experiment_details()
 
