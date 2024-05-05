@@ -76,11 +76,11 @@ end
 get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)
 
 # off path messages
-get_off_path_messages(policy_s::Array{Float32,2}; tol = 1f-3) = @fastmath (p_t'*policy_s)' .<= tol
+get_off_path_messages(policy_s::Array{Float32,2}; tol::Float32 = 1f-3) = @fastmath (p_t'*policy_s)' .<= tol
 
 # policy analysis
 
-function get_mass_on_suboptim(policy_s, policy_r, optimal_policy_s, optimal_policy_r)
+function get_mass_on_suboptim(policy_s::Array{Float32,2}, policy_r::Array{Float32,2}, optimal_policy_s::Array{Float32,2}, optimal_policy_r::Array{Float32,2})
     # compute probability mass on suboptim actions across states
     supp_policy_s, supp_optimal_policy_s = (policy_s .> 0), (optimal_policy_s .> 0)
     supp_policy_r, supp_optimal_policy_r = (policy_r .> 0), (optimal_policy_r .> 0)
@@ -91,7 +91,7 @@ function get_mass_on_suboptim(policy_s, policy_r, optimal_policy_s, optimal_poli
     return mass_on_suboptim_s, mass_on_suboptim_r
 end
 
-function ispartitional(policy_s; tol = 1f-3)
+function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = 1f-3)
     # check if policy of the sender is partitional 
     supp_policy_s = (policy_s .> tol)
     @fastmath @inbounds for message in 1:n_messages-1
@@ -104,7 +104,7 @@ function ispartitional(policy_s; tol = 1f-3)
     return true
 end
 
-function get_effective_messages(policy_s; tol = 1f-3)
+function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = 1f-3)
     # count number of messages that have no synonyms
     n_on_path_messages = size(policy_s,2)
     has_no_synonyms = trues(n_on_path_messages)
