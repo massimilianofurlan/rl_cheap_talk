@@ -143,19 +143,15 @@ function gen_dirs()
     return output_dir, temp_dir
 end
 
-format_txt(var::AbstractFloat) = string(round.(Float64.(var[1]),digits=5)) 
-format_txt(var::Tuple) = string(round.(Float64.(var[1]),digits=5), " (", round.(Float64.(var[2]),digits=6),")") 
-format_txt(var::AbstractArray) =  string(round.(Float64.(var), digits = 5))
+format_txt(val::AbstractFloat) = string(round.(Float64.(val[1]),digits=5)) 
+format_txt(val::Tuple) = string(round.(Float64.(val[1]),digits=5), " (", round.(Float64.(val[2]),digits=6),")") 
+format_txt(val::AbstractArray) =  string(round.(Float64.(val), digits = 5))
+format_entry(dict_val, key; std=false) = haskey(dict_val, key) ? (std ? format_txt(dict_val[key]) : format_txt(dict_val[key][1])) : " -- "
 
-function add_row(rows, statistics, var_name; keys_ = ["converged", "not_converged"], quant = false, std = true, text = var_name)
+function add_row(rows, dict_val, var_name; keys_ = ["converged", "not_converged"], std = true, text = var_name)
     row::Any = [text]
     for key in keys_
-        if haskey(statistics[key], var_name)
-            cell = std ? format_txt(statistics[key][var_name]) : format_txt(statistics[key][var_name][1])
-            row = hcat(row, cell)
-        else
-            row = hcat(row, " -- ")
-        end
+        row = hcat(row, format_entry(dict_val[key], var_name; std = std))
     end
     push!(rows, row)
 end
@@ -202,9 +198,9 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     nash_idxs = (1:set_nash["n_nash"]...,0)
     nash_header = (["SET NASH"; nash_idxs...])
     nash_table::Any = []
-    push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_txt(statistics[0]["avg_mutual_information"])]))
-    push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_txt(statistics[0]["avg_expected_reward_s"])]))
-    push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_txt(statistics[0]["avg_expected_reward_r"])]))
+    push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_entry(statistics[0],"avg_mutual_information")]))
+    push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_entry(statistics[0],"avg_expected_reward_s")]))
+    push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_entry(statistics[0],"avg_expected_reward_r")]))
     add_row(nash_table, statistics, "freq", std=false, keys_=nash_idxs)
     add_row(nash_table, statistics, "freq_nash", std=false, text = "freq_nash (max_γ < 1f-2)", keys_=nash_idxs)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=nash_idxs)
