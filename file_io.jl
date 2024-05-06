@@ -194,23 +194,42 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
         pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,6])
         pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,8,9,13,17,18,22])
     end
+    quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
 
     nash_idxs = (1:set_nash["n_nash"]...,0)
     nash_header = (["NASH"; nash_idxs...])
     nash_table::Any = []
-    push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_entry(statistics[0],"avg_mutual_information")]))
-    push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_entry(statistics[0],"avg_expected_reward_s")]))
-    push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_entry(statistics[0],"avg_expected_reward_r")]))
+    push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_entry(statistics[0],"avg_mutual_information", std=true)]))
+    push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_entry(statistics[0],"avg_expected_reward_s", std=true)]))
+    push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_entry(statistics[0],"avg_expected_reward_r", std=true)]))
     add_row(nash_table, statistics, "freq", std=false, keys_=nash_idxs)
     add_row(nash_table, statistics, "freq_nash", std=false, text = "freq_nash (max_γ < 1f-2)", keys_=nash_idxs)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=nash_idxs)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=nash_idxs)
+    add_row(nash_table, statistics, "freq_partitional", std=false, keys_=nash_idxs)
     open("$temp_dir/nash_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,4,5,8])
+        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,4,5,9])
     end
-
-    quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
     quiet || run(`cat $temp_dir/nash_outcomes.txt`)
+
+    n_classes = findlast(map(x->haskey(statistics,x),-(1:1:n_simulations)))
+    !isnothing(n_classes) && begin
+    class_idxs = -(1:n_classes)
+    class_header = (["NOT ALL NASH (CLASSES)"; -class_idxs...])
+    class_table::Any = []
+    add_row(class_table, statistics, "avg_mutual_information", keys_=class_idxs)
+    add_row(class_table, statistics, "avg_expected_reward_s", keys_=class_idxs)
+    add_row(class_table, statistics, "avg_expected_reward_r", keys_=class_idxs)
+    add_row(class_table, statistics, "freq", std=false, keys_=class_idxs)
+    add_row(class_table, statistics, "freq_nash", std=false, text = "freq_nash (max_γ < 1f-2)", keys_=class_idxs)
+    add_row(class_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=class_idxs)
+    add_row(class_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=class_idxs)
+    add_row(class_table, statistics, "freq_partitional", std=false, keys_=class_idxs)
+    open("$temp_dir/class_outcomes.txt","w") do io
+        pretty_table(io, reduce(vcat, class_table), header = class_header, hlines = [0,1,4,5,9])
+    end
+    quiet || run(`cat $temp_dir/class_outcomes.txt`)
+    end
 
     open("$temp_dir/set_nash.txt", "w") do io
         write(io, "List of non-redundant monotone partitional equilibria (Frug, 2016) ordered from most informative to least informative.")
@@ -233,8 +252,6 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
             show(io, "text/plain", replace_zero_induced_actions)
         end
     end
-
-
 end
 
 

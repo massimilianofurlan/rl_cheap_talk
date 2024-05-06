@@ -20,7 +20,7 @@ function compute_statistics(set_nash, results)
     induced_actions = results["induced_actions"]
 
     # assign nash id
-    nash_ids = mapslices(x -> (idx = findfirst(all(abs.(nash_induced_actions .- x) .< ptol, dims=1:2)[:]); idx === nothing ? 0 : idx), induced_actions, dims=1:2)[:]
+    nash_ids = get_nash_ids(induced_actions, nash_induced_actions; tol=0.01f0)
     nash_ids[.!is_nash] .= 0
     # compute statistics for each nash_id separately (only converged sessions)
     statistics_nash = Dict(i => Dict{String, Any}() for i in 0:n_nash)
@@ -28,9 +28,24 @@ function compute_statistics(set_nash, results)
         statistics_nash[nash_id] = compute_group_statistics(results, nash_ids .== nash_id)
     end
 
+    # assign similarity classes
+    class_ids = get_class_ids(induced_actions; tol=0.01f0)
+    n_classes = maximum(class_ids)
+    # compute statistics for each similarity class separately (only if not all gamma-nash and frequence > 0.025) 
+    statistics_not_nash = Dict()
+    curr_id = -1
+    for class_id in 1:n_classes
+        class_statitsitcs = compute_group_statistics(results, class_ids .== class_id)
+        if class_statitsitcs["freq"] >= 0.025 && class_statitsitcs["freq_nash"] < 1.0
+            statistics_not_nash[curr_id] = class_statitsitcs
+            curr_id -= 1
+        end
+    end
+
     dict_statistics = Dict("converged" => statistics_converged, 
                            "not_converged" => statistics_not_converged,
-                           statistics_nash...)
+                           statistics_nash...,
+                           statistics_not_nash...)
     return dict_statistics
 end
 
@@ -98,5 +113,34 @@ function compute_group_statistics(results, group)
 end
 
 mean_std(x; dims = :) = (mean(x, dims = dims), std(x, dims = dims, corrected = false))
+
+function get_nash_ids(induced_actions::Array{Float32,3}, nash_induced_actions::Array{Float32,3}; tol::Float32 = rtol)
+    # returns nash ids
+    n_nash = size(nash_induced_actions, 3)
+    nash_ids = zeros(Int, n_simulations)
+    @inbounds @fastmath for z in 1:n_simulations
+        for nash_id in 1:n_nash
+            is_approx(nash_induced_actions[:,:,nash_id], induced_actions[:,:,z]; tol = tol) || continue
+            nash_ids[z] = nash_id
+            break
+        end
+    end
+    return nash_ids
+end
+
+
+function get_class_ids(induced_actions::Array{Float32,3}; tol::Float32 = rtol)
+    # returns similarity class ids
+    class_ids, curr_id = zeros(Int, n_simulations), 0
+    @inbounds @fastmath for i in 1:n_simulations
+        class_ids[i] == 0 && (curr_id += 1; class_ids[i] = curr_id)
+        for j in i+1:n_simulations
+            class_ids[j] == 0 || continue
+            is_approx(induced_actions[:,:,i], induced_actions[:,:,j]; tol=tol) || continue
+            class_ids[j] = class_ids[i]     # Assign to the same class if similar
+        end
+    end
+    return class_ids
+end
 
 
