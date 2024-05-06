@@ -150,7 +150,7 @@ end
 
 # generic functions
 
-function is_approx(A::Array{Float32,2}, A_::Array{Float32,2})
+function is_approx(A::Array{Float32,2}, A_::Array{Float32,2}; tol::Float32 = rtol)
     # fast isapprox(), discussion at https://discourse.julialang.org/t/faster-isapprox/101202/8
     norm_A, norm_A_, norm_diff = 0.0f0, 0.0f0, 0.0f0
     @turbo for i in eachindex(A)
@@ -159,7 +159,7 @@ function is_approx(A::Array{Float32,2}, A_::Array{Float32,2})
         norm_A_ += abs2(a_)
         norm_diff += abs2(a - a_)
     end
-    return norm_diff < abs2(rtol) * max(norm_A, norm_A_)
+    return norm_diff < abs2(tol) * max(norm_A, norm_A_)
 end
 
 function argmax_(A::AbstractArray{Float32,1}; idxs = Array{Int64,1}(undef,length(A)))
@@ -181,7 +181,7 @@ function argmax_(A::AbstractArray{Float32,1}; idxs = Array{Int64,1}(undef,length
 end
 
 function maximum_(A::AbstractArray{Float32,1})
-    # fast maximum(), discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5  
+    # fast maximum(), related to discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5  
     max_val = -Inf32
     @inbounds for i in eachindex(A)
         a = A[i]
@@ -195,14 +195,13 @@ end
 
 function sample_(rng::AbstractRNG, wv::AbstractArray{Float32,1})
     # fast weighted sampling, same as StatsBase.jl w/out probability weights
-    # weights wv need to sum to 1.0
+    # weights wv need to sum to 1.0 (no checks)
     t = rand(rng)
     n = length(wv)
     i = 1
     cw = wv[1]
     @fastmath @inbounds while cw < t && i < n
-        i += 1
-        cw += wv[i]
+        cw += wv[i+=1]
     end
     return i
 end
