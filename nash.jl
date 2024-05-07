@@ -56,7 +56,7 @@ function is_best_reply(policy::Array{Float32,2}, policy_opponent::Array{Float32,
     # compute (bitmap) support of policy and best response to policy_opponent
     supp_policy, supp_best_reply = (policy .> 0), (best_reply .> 0)
     # policy is a best response to policy_opponent iff supp(policy) ⊆ supp(best_reply)
-    return all(supp_best_reply - supp_policy .>= 0)
+    return all(supp_best_reply - supp_policy .>= 0) #all(.!supp_policy .|| supp_best_reply) or ~any(supp_policy .& .!supp_best_reply)
 end
 
 function is_exact_nash(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
@@ -78,7 +78,7 @@ function get_exante_receiver_optimal()
         thread_idx = Threads.threadid()
         # construct (partitional) policy for the sender
         partition = digits(i, base=2, pad=(n_states-1))                                             # i-th possible partition
-        N = count(partition.==1) + 1                                                                    # number of messages
+        N = count(partition.==1) + 1                                                                # number of messages
         N <= n_messages || continue
         policy_s_ = convert_partition_to_policy(partition)                                          # sender's candidate policy
         policy_r_ = get_best_reply_r(policy_s_)                                                     # receiver's candidate policy
