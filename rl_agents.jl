@@ -162,14 +162,14 @@ function is_approx(A::Array{Float32,2}, A_::Array{Float32,2}; tol::Float32 = rto
     return norm_diff < abs2(tol) * max(norm_A, norm_A_)
 end
 
-function argmax_(A::AbstractArray{Float32,1}; idxs = Array{Int64,1}(undef,length(A)))
-    # fast argmax(), discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5  
+function argmax_(A::AbstractArray{Float32,1}; idxs = Array{Int64,1}(undef,length(A)), tol = 0.0f0)
+    # fast argmax(), discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5
     max_val = -Inf32
     n = 0
     @inbounds for i in eachindex(A)
         a = A[i]
-        a < max_val && continue
-        if a > max_val
+        a < max_val - tol && continue
+        if a > max_val + tol
             max_val = a
             n = 1
             idxs[n] = i

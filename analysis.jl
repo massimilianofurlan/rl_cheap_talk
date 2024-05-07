@@ -176,14 +176,14 @@ end
 function get_best_reply_r(policy_s::Array{Float32,2}; opb = p_t)
     # get best reply to sender's stochastic policy (default off-path belief is prior)
     q_r = get_q_r(policy_s; opb = opb)
-    best_reply = argmax_.(q_r[m,:] for m in 1:n_messages)
+    best_reply = argmax_.(q_r[m,:] for m in 1:n_messages; tol=1f-7) # precison up to 1f-7 to catch all indifferences 
     return convert_policy(best_reply, n_actions)
 end
 
 function get_best_reply_s(policy_r::Array{Float32,2})
     # get best reply to receiver's policy   
     q_s = get_q_s(policy_r)
-    best_reply =  argmax_.(q_s[t,:] for t in 1:n_states)
+    best_reply =  argmax_.(q_s[t,:] for t in 1:n_states; tol=1f-7)  # precison up to 1f-7 to catch all indifferences
     return convert_policy(best_reply, n_messages)
 end
 
@@ -234,4 +234,24 @@ function get_off_path_message_action_pairs(policy_s::Array{Float32,2}, policy_r:
     is_wlog = issubset(off_path_induced_actions, policy_r[.!off_path_messages,:] .> 1f-6)
     return off_path_messages, off_path_induced_actions, is_wlog
 end
+
+function isfixedpoint(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2}, induced_actions::Array{Float32,2})
+    # is fixed point Q-system
+    supp_s, supp_r =  policy_s .> ptol, policy_r .> ptol
+    flag_s, flag_r = trues(n_messages), trues(n_actions)
+    for t in 1:n_states
+        for m in 1:n_messages
+            supp_s[t,m] == true || continue
+            for a in 1:n_actions
+                supp_r[m,a] == true || continue
+                # sender
+                flag_s[m] *= abs(Q_s[t,m]-reward_matrix_s[a,t]) < 1f-6
+                # receiver
+                flag_r[a] *= abs(Q_r[m,a]-reward_matrix_r[a,t]) < 1f-6
+            end
+        end
+    end
+    return all(flag_s)*all(flag_r)
+end
+
 =#
