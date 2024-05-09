@@ -172,7 +172,6 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     push!(statistics_table, ["[CONVERGENCE]" "" ""])
     add_row(statistics_table, statistics, "freq"; std = false)
     add_row(statistics_table, statistics, "avg_n_episodes")
-    add_row(statistics_table, statistics, "avg_n_conv_diff", text = "n_r - n_s")
     push!(statistics_table, ["[REWARD METRICS]" "" ""])
     add_row(statistics_table, statistics, "avg_expected_reward_s")
     add_row(statistics_table, statistics, "avg_expected_reward_r")
@@ -192,7 +191,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-2)"; std = false)
     open("$temp_dir/experiment_outcomes.txt","w") do io
         pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,6])
-        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,5,6,8,9,13,17,18,22])
+        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,4,5,7,8,12,16,17,21])
     end
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
 

@@ -109,7 +109,6 @@ function main()
     Q_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations);
     rewards = Array{Float32,3}(undef, n_max_episodes, n_agents, n_simulations);
     n_episodes = Array{Int64,1}(undef, n_simulations);
-    n_conv_diff = Array{Int64,1}(undef, n_simulations);
 
     rngs = [MersenneTwister(z) for z in 1:n_simulations]
     progress = Progress(n_simulations, color=:white, showspeed=true)
@@ -118,12 +117,12 @@ function main()
     @time Threads.@threads for z in 1:n_simulations
         rng = rngs[z]
         rewards_ = view(rewards,:,:,z)  # views are passed by reference
-        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z], n_conv_diff[z] = run_simulation(rewards_, rng=rng);    
+        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(rewards_, rng=rng);    
         quiet || next!(progress)
     end
 
     println(stdout, "analyzing outcomes...") 
-    @time results = convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff); 
+    @time results = convergence_analysis(Q_s, Q_r, n_episodes); 
 
     println(stdout, "computing statistics...") 
     @time statistics = compute_statistics(set_nash, results)

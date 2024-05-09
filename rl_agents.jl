@@ -12,7 +12,7 @@ function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=
         #x = get_signal(m, rng)                                             # get noisy signal from channel
         a = get_action(policy_r, Q_r, temp_r[ep], m, rng)                   # get action of receiver (softmax)
         reward_s, reward_r = reward_matrix_s[a,t], reward_matrix_r[a,t]     # get utilities
-        rewards[ep,:] .= reward_s, reward_r                                 # log utilities
+        #rewards[ep,:] .= reward_s, reward_r                                # log utilities
         Q_s = update_q(Q_s, t, m, reward_s, alpha_s)                        # update Q-matrix of sender
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
         n_s = is_approx(policy_s, policy_s_) ? n_s + 1 : 0                  # if policy approx unchanged increment else reset
@@ -22,7 +22,7 @@ function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=
         min(n_s, n_r) == convergence_threshold && break                     # break if policies have converged                
         ep += 1
     end
-    return Q_s, Q_r, ep, n_r - n_s
+    return Q_s, Q_r, ep
 end
 
 # Q-learning

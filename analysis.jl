@@ -1,10 +1,10 @@
 
 # convergence analysis
-function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
+function convergence_analysis(Q_s, Q_r, n_episodes)
     # analyze experiments at convergence 
 
     # no analysis in raw mode 
-    dict_input = Dict(name => value for (name, value) in zip(@names(Q_s, Q_r, n_episodes, n_conv_diff), (Q_s, Q_r, n_episodes, n_conv_diff)))
+    dict_input = Dict(name => value for (name, value) in zip(@names(Q_s, Q_r, n_episodes), (Q_s, Q_r, n_episodes)))
     raw && return dict_input
 
     # preallocate arrays
