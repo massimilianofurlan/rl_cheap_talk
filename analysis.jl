@@ -89,13 +89,119 @@ function convergence_analysis(Q_s, Q_r, n_episodes, n_conv_diff)
 end
 
 
-# posterior beliefs
-get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)
+# compute theoretical Q-matrices and Q-loss
 
-# off path messages
-get_off_path_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol) = @fastmath (p_t'*policy_s)' .<= tol
+function get_q_s(policy_r::Array{Float32,2})
+    # compute theoretical Q-matrix of the sender
+    return @turbo (policy_r*reward_matrix_s)'
+end
+
+function get_q_r(policy_s::Array{Float32,2}; opb = p_t)
+    # compute theoretical Q-matrix of the receiver
+    # conditional probability of being in state t given message m (bayes update)     
+    p_tm = get_posterior(policy_s)
+    # off-path belief coincide with opb (default is prior)
+    off_path_messages = get_off_path_messages(policy_s, tol = 1f-6)
+    p_tm[:,off_path_messages] .= opb
+    return @turbo (reward_matrix_r * p_tm)'
+end
+
+
+# best response functions
+
+function get_best_reply_r(policy_s::Array{Float32,2}; opb = p_t)
+    # get best reply to sender's stochastic policy (default off-path belief is prior)
+    q_r = get_q_r(policy_s; opb = opb)
+    best_reply = argmax_.(q_r[m,:] for m in 1:n_messages; tol=1f-7) # precison up to 1f-7 to catch all indifferences 
+    return convert_policy(best_reply, n_actions)
+end
+
+function get_best_reply_s(policy_r::Array{Float32,2})
+    # get best reply to receiver's policy   
+    q_s = get_q_s(policy_r)
+    best_reply =  argmax_.(q_s[t,:] for t in 1:n_states; tol=1f-7)  # precison up to 1f-7 to catch all indifferences
+    return convert_policy(best_reply, n_messages)
+end
+
+
+# induced actions
+
+function get_induced_actions(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
+    # get distribution of induced actions given policy_s and policy_r
+    return @turbo policy_s * policy_r
+end
+
+
+# rewards and mutual information
+
+function get_expected_rewards(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
+    # get on the path rewards given policy_s and policy_r
+    induced_actions = get_induced_actions(policy_s, policy_r)
+    @fastmath reward_s = p_t'*sum(induced_actions'.*reward_matrix_s, dims=1)[:]
+    @fastmath reward_r = p_t'*sum(induced_actions'.*reward_matrix_r, dims=1)[:]
+    return reward_s, reward_r
+end
+
+function get_mutual_information(policy::Array{Float32,2})
+    # compute normalized mutual information between m and t 
+    # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
+    @fastmath p_m = policy'p_t
+    return @fastmath sum(policy[t,m]*p_t[t] * log2(policy[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy[t,m] != 0) / (-p_t' * log2.(p_t)) 
+end
+
+# policy
+
+function get_policy(Q::Array{Float32,2}, temp::Float32)
+    # derive soft-max policy from Q-matrix
+    policy = similar(Q)
+    @fastmath @inbounds for state in 1:size(Q,1)
+        max_val = maximum_(view(Q,state,:))
+        policy[state,:] = exp.((Q[state,:].-max_val)/temp)/sum(exp.((Q[state,:].-max_val)/temp))
+    end
+    return policy
+end
+
+function convert_policy(policy_::Array, n_actions::Int64)
+    # convert deterministic policy to an equivalent full-support stochastic policy 
+    policy = zeros(Float32, length(policy_), n_actions)
+    @fastmath @inbounds for state in 1:length(policy_)
+        if size(policy_[state]) == ()
+            # if best action in state is unique, degenerate distribution
+            policy[state,policy_[state]] = 1.0f0
+        else
+            # if best action in state is not unique, randomize across best actions
+            policy[state,policy_[state]] .= 1.0f0 / length(policy_[state])
+        end
+    end
+    return policy
+end
+
+function order_policies(policy_s, policy_r)
+    # reorder messages so that lower message indeces are associated to lower states 
+    m_= 1
+    for t in 1:n_states 
+        set_m = argmax_(policy_s[t,:])              # index of most frequently sent message in state t
+        length(set_m) < n_messages || continue      # skip (inconsequential) reordering if all messages are synonym
+        for m in set_m  
+            m < m_ && continue                      # if m was not yet assigned a position, swap m with m_
+            temp = policy_s[:,m_]
+            policy_s[:,m_] = policy_s[:,m]
+            policy_s[:,m] = temp
+            temp = policy_r[m_,:]
+            policy_r[m_,:] = policy_r[m,:]
+            policy_r[m,:] = temp
+            m_ += 1
+        end
+    end
+    return policy_s, policy_r
+end
+
 
 # policy analysis
+
+
+get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)                              # posterior beliefs following each message
+get_off_path_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol) = @fastmath (p_t'*policy_s)' .<= tol     # bitmap off-path messages
 
 function get_mass_on_suboptim(policy_s::Array{Float32,2}, policy_r::Array{Float32,2}, optimal_policy_s::Array{Float32,2}, optimal_policy_r::Array{Float32,2})
     # compute probability mass on suboptim actions across states
@@ -135,96 +241,6 @@ function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol)
     return has_no_synonyms
 end
 
-
-# compute theoretical Q-matrices and Q-loss
-
-function get_q_s(policy_r::Array{Float32,2})
-    # compute theoretical Q-matrix of the sender
-    return @turbo (policy_r*reward_matrix_s)'
-end
-
-function get_q_r(policy_s::Array{Float32,2}; opb = p_t)
-    # compute theoretical Q-matrix of the receiver
-    # conditional probability of being in state t given message m (bayes update)     
-    p_tm = get_posterior(policy_s)
-    # off-path belief coincide with opb (default is prior)
-    off_path_messages = get_off_path_messages(policy_s, tol = 1f-6)
-    p_tm[:,off_path_messages] .= opb
-    return @turbo (reward_matrix_r * p_tm)'
-end
-
-# convert deterministic policy to distribution
-
-function convert_policy(policy_::Array, n_actions::Int64)
-    # convert deterministic policy to an equivalent full-support stochastic policy 
-    policy = zeros(Float32, length(policy_), n_actions)
-    @fastmath @inbounds for state in 1:length(policy_)
-        if size(policy_[state]) == ()
-            # if best action in state is unique, degenerate distribution
-            policy[state,policy_[state]] = 1.0f0
-        else
-            # if best action in state is not unique, randomize across best actions
-            policy[state,policy_[state]] .= 1.0f0 / length(policy_[state])
-        end
-    end
-    return policy
-end
-
-
-# best response functions
-
-function get_best_reply_r(policy_s::Array{Float32,2}; opb = p_t)
-    # get best reply to sender's stochastic policy (default off-path belief is prior)
-    q_r = get_q_r(policy_s; opb = opb)
-    best_reply = argmax_.(q_r[m,:] for m in 1:n_messages; tol=1f-7) # precison up to 1f-7 to catch all indifferences 
-    return convert_policy(best_reply, n_actions)
-end
-
-function get_best_reply_s(policy_r::Array{Float32,2})
-    # get best reply to receiver's policy   
-    q_s = get_q_s(policy_r)
-    best_reply =  argmax_.(q_s[t,:] for t in 1:n_states; tol=1f-7)  # precison up to 1f-7 to catch all indifferences
-    return convert_policy(best_reply, n_messages)
-end
-
-
-# policies
-
-function get_policy(Q::Array{Float32,2}, temp::Float32)
-    # derive soft-max policy from Q-matrix
-    policy = similar(Q)
-    @fastmath @inbounds for state in 1:size(Q,1)
-        max_val = maximum_(view(Q,state,:))
-        policy[state,:] = exp.((Q[state,:].-max_val)/temp)/sum(exp.((Q[state,:].-max_val)/temp))
-    end
-    return policy
-end
-
-
-# induced actions
-
-function get_induced_actions(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
-    # get distribution of induced actions given policy_s and policy_r
-    return @turbo policy_s * policy_r
-end
-
-
-# rewards and mutual information
-
-function get_expected_rewards(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
-    # get on the path rewards given policy_s and policy_r
-    induced_actions = get_induced_actions(policy_s, policy_r)
-    @fastmath reward_s = p_t'*sum(induced_actions'.*reward_matrix_s, dims=1)[:]
-    @fastmath reward_r = p_t'*sum(induced_actions'.*reward_matrix_r, dims=1)[:]
-    return reward_s, reward_r
-end
-
-function get_mutual_information(policy::Array{Float32,2})
-    # compute normalized mutual information between m and t 
-    # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
-    @fastmath p_m = policy'p_t
-    return @fastmath sum(policy[t,m]*p_t[t] * log2(policy[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy[t,m] != 0) / (-p_t' * log2.(p_t)) 
-end
 
 #=
 function get_off_path_message_action_pairs(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
