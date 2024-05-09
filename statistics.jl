@@ -57,7 +57,6 @@ function compute_group_statistics(results, group)
 
     # read experiment outcomes from file
     n_episodes = results["n_episodes"][group]
-    n_conv_diff = results["n_conv_diff"][group]
     expected_reward_s = results["expected_reward_s"][group]
     expected_reward_r = results["expected_reward_r"][group]
     absolute_error_s = results["absolute_error_s"][group]
@@ -74,7 +73,6 @@ function compute_group_statistics(results, group)
     # average episodes played, frequence in group
     freq = count(group) / n_simulations
     avg_n_episodes = trunc.(Int,mean_std(n_episodes))
-    avg_n_conv_diff = trunc.(Int,mean_std(n_conv_diff))
     # average expected rewards
     avg_expected_reward_s = mean_std(expected_reward_s)
     avg_expected_reward_r = mean_std(expected_reward_r)
@@ -102,10 +100,10 @@ function compute_group_statistics(results, group)
     # frequence (γ < 1f-2)-nash 
     freq_nash = count(is_nash) / n_group
 
-    statistics = (group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
+    statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, avg_n_on_path_messages, avg_n_effective_messages, 
                   min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional)
-    var_names = @names(group, freq, avg_n_episodes, avg_n_conv_diff, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
+    var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_mutual_information, avg_n_on_path_messages, avg_n_effective_messages, 
                   min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
