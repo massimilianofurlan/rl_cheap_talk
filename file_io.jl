@@ -45,10 +45,6 @@ function parse_commandline()
         #    help = "error rate of communication channel (not implemented)"
         #    default = 0.0f0  
         #    range_tester = x -> x >= 0.0f0 
-        "--factor", "-k"
-            arg_type = Float32
-            help = "utility scale factor"
-            default = 1.0f0
         # SIMULATION SETTINGS
         "--n_simulations", "-N"
             arg_type = Int64
@@ -109,7 +105,6 @@ function show_experiment_details()
         println(io, " n_actions: \t ", n_actions)
         println(io, " n_messages: \t ", n_messages)
         println(io, " loss type: \t ", loss_type)
-        println(io, " scale factor: \t ", k)
         println(io, " distribution: \t ", dist_type)
         println(io, " bias: \t\t ", bias)
         #println(io, " noise: \t ", noise)  
@@ -259,7 +254,7 @@ end
 function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict, rewards::Array{Float32,3})
     save_ || return nothing
    
-    game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type, k], "_") # noise is omitted
+    game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type], "_") # noise is omitted
     hyperparameters_key = join([alpha_s, alpha_r, lambda_s, lambda_r, temp0_s, temp0_r, q_init], "_")
     settings_key = join([n_simulations, n_max_episodes, convergence_threshold, rtol], "_") # irrelevanf for directory name
    

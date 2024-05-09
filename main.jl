@@ -36,11 +36,6 @@ const n_actions = config["n_actions"]
 # number of possible messages
 const n_messages = config["n_messages"]
 
-# loss type 
-const loss_type = config["loss"]
-# scaling factor
-const k::Float32 = config["factor"]
-
 # set of states
 const T = collect(0:1f0/(n_states-1):1) 
 # set of actions
@@ -48,16 +43,17 @@ const A = collect(0:1f0/(n_actions-1):1)
 # set of messages
 const M = n_messages < 26 ? collect('a':'z')[1:n_messages] : collect(1:n_messages)
 
+# loss type 
+const loss_type = config["loss"]
 # senders' bias
 const bias::Float32 = config["bias"]
-# communication channel
-#const noise::Float32 = config["noise"]
-
 # reward matrices
-const reward_matrix_s, reward_matrix_r = k .* gen_reward_matrix()
+const reward_matrix_s, reward_matrix_r = gen_reward_matrix()
 # prior distribution 
 const dist_type = config["dist"]
 const p_t = gen_distribution()
+# communication channel
+#const noise::Float32 = config["noise"]
 
 # babbling rewards
 const babbling_action = argmax(reward_matrix_r*p_t)                         # TODO: currently supports only single babbling action (as in uniform-quadratic case)
@@ -79,8 +75,8 @@ const q_init = config["q_init"]
 const alpha_s::Float32 = config["alpha_s"]
 const alpha_r::Float32 = config["alpha_r"]
 # exploration parameters (decay factor, initial exploration)
-const lambda_s::Float32 = config["lambda_s"] # 0.01^(1/(1000*n_states^2))
-const lambda_r::Float32 = config["lambda_r"] # 0.01^(1/(1000*n_states^2))
+const lambda_s::Float32 = config["lambda_s"]
+const lambda_r::Float32 = config["lambda_r"]
 const temp0_s::Float32 = config["temp0_s"]
 const temp0_r::Float32 = config["temp0_r"]
 # exploration decay
