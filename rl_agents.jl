@@ -3,7 +3,7 @@
 
 function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=MersenneTwister())
     # main function, runs simulation and returns Q matrices of the agents 
-    Q_s, Q_r, policy_s, policy_r = init_agents()                            # initialize Q-matrices and policies of the agents
+    Q_s, Q_r, policy_s, policy_r = init_agents(rng)                         # initialize Q-matrices and policies of the agents
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
     n_r, n_s, ep = 0, 0, 1                                                  # n_s, s_r count episodes w/ similar policy
     @inbounds while ep < n_max_episodes
@@ -17,8 +17,8 @@ function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
         n_s = is_approx(policy_s, policy_s_) ? n_s + 1 : 0                  # if policy approx unchanged increment else reset
         n_r = is_approx(policy_r, policy_r_) ? n_r + 1 : 0                  # if policy approx unchanged increment else reset
-        n_s == 0 && copy!(policy_s_, policy_s)                              # if policy changed 
-        n_r == 0 && copy!(policy_r_, policy_r)                              # if policy changed 
+        n_s == 0 && copy!(policy_s_, policy_s)                              # if policy changed reset current policy
+        n_r == 0 && copy!(policy_r_, policy_r)                              # if policy changed reset current policy
         min(n_s, n_r) == convergence_threshold && break                     # break if policies have converged                
         ep += 1
     end
@@ -27,12 +27,12 @@ end
 
 # Q-learning
 
-function init_agents()
+function init_agents(rng::MersenneTwister)
     # initialize Q matrices and policies
     if q_init == "random"
         # randomly inizialize Q-matrices in interval [babbling_reward_i,0]
-        Q_s = babbling_reward_s * rand(Float32, n_states, n_messages)
-        Q_r = babbling_reward_r * rand(Float32, n_messages, n_actions)
+        Q_s = babbling_reward_s * rand(rng, Float32, n_states, n_messages)
+        Q_r = babbling_reward_r * rand(rng, Float32, n_messages, n_actions)
     elseif q_init == "optimistic"
         # optimistic initialization (agents get take more than 0)
         Q_s = zeros(Float32, n_states, n_messages)
@@ -88,15 +88,15 @@ end
 end=#
 
 function update_q(Q::Array{Float32,2}, state::Int64, action::Int64, reward::Float32, alpha::Float32)
-    # value iteration:  Q(s,a) <- Q(s,a) + alpha [ R - Q(s,a) ]
-    @fastmath @inbounds Q[state,action] = (1 - alpha) * Q[state,action] + alpha * reward 
+    # value iteration:  Q(s,a) <-  (1 - alpha) * Q[state,action] + alpha * reward 
+    @fastmath @inbounds Q[state,action] += alpha * (reward - Q[state,action])
     return Q
 end
 
 # reward of the agents
 
 function gen_reward_matrix(loss_type::String = loss_type)
-    # reward function for Crowfard and Sobel on a unit line
+    # reward function for Crowfard and Sobel on a discretized unit line
     function reward(a,t,b)
         loss_type == "quadratic" && return -abs2(view(A,a) .- view(T,t) .- b)
         loss_type == "absolute" && return -abs(view(A,a) .- view(T,t) .- b)
@@ -166,7 +166,7 @@ function argmax_(A::AbstractArray{Float32,1}; idxs = Array{Int64,1}(undef,length
     # fast argmax(), discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5
     max_val = -Inf32
     n = 0
-    @inbounds for i in eachindex(A)
+    @fastmath @inbounds for i in eachindex(A)
         a = A[i]
         a < max_val - tol && continue
         if a > max_val + tol
@@ -183,7 +183,7 @@ end
 function maximum_(A::AbstractArray{Float32,1})
     # fast maximum(), related to discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5  
     max_val = -Inf32
-    @inbounds for i in eachindex(A)
+    @fastmath @inbounds for i in eachindex(A)
         a = A[i]
         a < max_val && continue
         if a > max_val
@@ -194,8 +194,8 @@ function maximum_(A::AbstractArray{Float32,1})
 end
 
 function sample_(rng::AbstractRNG, wv::AbstractArray{Float32,1})
-    # fast weighted sampling, same as StatsBase.jl w/out probability weights
-    # weights wv need to sum to 1.0 (no checks)
+    # fast weighted sampling, same as in StatsBase.jl w/out probability weights
+    # weights wv need to sum to 1.0 (no checks in place)
     t = rand(rng)
     n = length(wv)
     i = 1
