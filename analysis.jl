@@ -40,7 +40,7 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # compute induced actions at convergence
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)
         # compute (ex-ante) expected rewards at convergence
-        expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s_, policy_r_)
+        expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(induced_actions[:,:,z])
         # compute best response to opponent's policy at convergence
         optimal_policy_s = get_best_reply_s(policy_r_)
         optimal_policy_r = get_best_reply_r(policy_s_)
@@ -137,6 +137,13 @@ end
 function get_expected_rewards(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
     # get on the path rewards given policy_s and policy_r
     induced_actions = get_induced_actions(policy_s, policy_r)
+    @fastmath reward_s = p_t'*sum(induced_actions'.*reward_matrix_s, dims=1)[:]
+    @fastmath reward_r = p_t'*sum(induced_actions'.*reward_matrix_r, dims=1)[:]
+    return reward_s, reward_r
+end
+
+function get_expected_rewards(induced_actions::Array{Float32,2})
+    # get on the path rewards given induced actions
     @fastmath reward_s = p_t'*sum(induced_actions'.*reward_matrix_s, dims=1)[:]
     @fastmath reward_r = p_t'*sum(induced_actions'.*reward_matrix_r, dims=1)[:]
     return reward_s, reward_r
