@@ -55,10 +55,10 @@ const p_t = gen_distribution()
 # communication channel
 #const noise::Float32 = config["noise"]
 
-# babbling rewards
-const babbling_action = argmax(reward_matrix_r*p_t)                         # TODO: currently supports only single babbling action (as in uniform-quadratic case)
-const babbling_reward_s::Float32 = p_t'reward_matrix_s[babbling_action,:]
-const babbling_reward_r::Float32 = p_t'reward_matrix_r[babbling_action,:]
+# babbling rewards (receiver randomizes uniformly over pure best replies)
+const babbling_actions = argmax_(reward_matrix_r*p_t)
+const babbling_reward_s::Float32 = mean(p_t'reward_matrix_s[a,:] for a in babbling_actions)
+const babbling_reward_r::Float32 = mean(p_t'reward_matrix_r[a,:] for a in babbling_actions)
 
 # Q-LEARNING 
 
