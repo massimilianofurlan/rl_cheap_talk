@@ -40,7 +40,7 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # compute induced actions at convergence
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)
         # compute (ex-ante) expected rewards at convergence
-        expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(induced_actions[:,:,z])
+        expected_reward_s[z], expected_reward_r[z] = get_expected_rewards(policy_s_, policy_r_)
         # compute best response to opponent's policy at convergence
         optimal_policy_s = get_best_reply_s(policy_r_)
         optimal_policy_r = get_best_reply_r(policy_s_)
@@ -61,7 +61,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # count number of messages that have no synonyms
         n_effective_messages[z] = count(get_effective_messages(policy_s_[:,.!off_path_messages[:,z]]))
         # compute mass on suboptim messages (actions) for each state (message)
-        mass_on_suboptim_s[:,z], mass_on_suboptim_r[:,z] = get_mass_on_suboptim(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
+        mass_on_suboptim_s[:,z] = get_mass_on_suboptim(policy_s_, optimal_policy_s)
+        mass_on_suboptim_r[:,z] = get_mass_on_suboptim(policy_r_, optimal_policy_r)
         # check if is a γ-nash
         max_mass_on_suboptim_s[z] = maximum(mass_on_suboptim_s[:,z])
         max_mass_on_suboptim_r[z] = maximum(mass_on_suboptim_r[.!off_path_messages[:,z],z])
@@ -210,15 +211,10 @@ end
 get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)                              # posterior beliefs following each message
 get_off_path_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol) = @fastmath (p_t'*policy_s)' .<= tol     # bitmap off-path messages
 
-function get_mass_on_suboptim(policy_s::Array{Float32,2}, policy_r::Array{Float32,2}, optimal_policy_s::Array{Float32,2}, optimal_policy_r::Array{Float32,2})
-    # compute probability mass on suboptim actions across states
-    supp_policy_s, supp_optimal_policy_s = (policy_s .> 0), (optimal_policy_s .> 0)
-    supp_policy_r, supp_optimal_policy_r = (policy_r .> 0), (optimal_policy_r .> 0)
-    suboptim_messages =  supp_policy_s .& .!supp_optimal_policy_s
-    suboptim_actions =  supp_policy_r .& .!supp_optimal_policy_r
-    mass_on_suboptim_s = sum(suboptim_messages .* policy_s, dims=2)[:]
-    mass_on_suboptim_r = sum(suboptim_actions .* policy_r, dims=2)[:]
-    return mass_on_suboptim_s, mass_on_suboptim_r
+function get_mass_on_suboptim(policy::Array{Float32,2}, optimal_policy::Array{Float32,2})
+    # compute probability mass on suboptim actions for each states
+    suboptim_bitmap = (policy .> 0) .& .!(optimal_policy .> 0)
+    return sum(suboptim_bitmap .* policy, dims=2)
 end
 
 function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = ptol)
