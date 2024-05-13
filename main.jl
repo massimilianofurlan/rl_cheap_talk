@@ -2,7 +2,6 @@
 # load libraries
 using ProgressMeter
 using Random
-using LoopVectorization
 using StatsBase
 # load files
 include("file_io.jl")
@@ -89,7 +88,6 @@ const rtol = 0.001f0
 const ptol = 0.001f0
 # tolerance on gamma-nash (gamma < gtol)
 const gtol = 0.01f0
-
 
 show_experiment_details()
 

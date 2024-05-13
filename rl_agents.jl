@@ -6,7 +6,7 @@ function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=
     Q_s, Q_r, policy_s, policy_r = init_agents(rng)                         # initialize Q-matrices and policies of the agents
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
     n_r, n_s, ep = 0, 0, 1                                                  # n_s, s_r count episodes w/ similar policy
-    @inbounds while ep < n_max_episodes
+    while ep < n_max_episodes
         t = sample_(rng, p_t)                                               # draw state of the world from prior
         m = get_action(policy_s, Q_s, temp_s[ep], t, rng)                   # get action of sender (softmax)
         #x = get_signal(m, rng)                                             # get noisy signal from channel
@@ -53,14 +53,14 @@ function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, temp::Float32
     # exp.(x - max(x)) ensures softmax is numerically stable
     # warning: might result in NaN if temp gets extremely small
     n_states, n_actions = size(policy)
-    @inbounds for state in 1:n_states
+    @fastmath for state in 1:n_states
         cum_sum = 0.0f0
         max_val = maximum_(view(Q,state,:))
-        @turbo for action in 1:n_actions
+        @fastmath for action in 1:n_actions
             policy[state, action] = exp((Q[state,action] - max_val) / temp)
             cum_sum += policy[state, action]
         end
-        @turbo for action in 1:n_actions
+        @fastmath for action in 1:n_actions
             policy[state, action] /= cum_sum
         end   
     end 
@@ -89,7 +89,7 @@ end=#
 
 function update_q(Q::Array{Float32,2}, state::Int64, action::Int64, reward::Float32, alpha::Float32)
     # value iteration:  Q(s,a) <-  (1 - alpha) * Q[state,action] + alpha * reward 
-    @fastmath @inbounds Q[state,action] += alpha * (reward - Q[state,action])
+    @fastmath Q[state,action] += alpha * (reward - Q[state,action])
     return Q
 end
 
@@ -153,7 +153,7 @@ end
 function is_approx(A::Array{Float32,2}, A_::Array{Float32,2}; tol::Float32 = rtol)
     # fast isapprox(), discussion at https://discourse.julialang.org/t/faster-isapprox/101202/8
     norm_A, norm_A_, norm_diff = 0.0f0, 0.0f0, 0.0f0
-    @turbo for i in eachindex(A)
+    @fastmath for i in eachindex(A)
         a, a_ = A[i], A_[i]
         norm_A += abs2(a)
         norm_A_ += abs2(a_)
@@ -166,7 +166,7 @@ function argmax_(A::AbstractArray{Float32,1}; idxs = Array{Int64,1}(undef,length
     # fast argmax(), discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5
     max_val = -Inf32
     n = 0
-    @fastmath @inbounds for i in eachindex(A)
+    @fastmath for i in eachindex(A)
         a = A[i]
         a < max_val - tol && continue
         if a > max_val + tol
@@ -183,7 +183,7 @@ end
 function maximum_(A::AbstractArray{Float32,1})
     # fast maximum(), related to discussion at https://discourse.julialang.org/t/how-to-efficiently-find-the-set-of-maxima-of-an-array/73423/5  
     max_val = -Inf32
-    @fastmath @inbounds for i in eachindex(A)
+    @fastmath for i in eachindex(A)
         a = A[i]
         a < max_val && continue
         if a > max_val
@@ -200,7 +200,7 @@ function sample_(rng::AbstractRNG, wv::AbstractArray{Float32,1})
     n = length(wv)
     i = 1
     cw = wv[1]
-    @fastmath @inbounds while cw < t && i < n
+    @fastmath while cw < t && i < n
         cw += wv[i+=1]
     end
     return i

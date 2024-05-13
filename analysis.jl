@@ -64,8 +64,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         mass_on_suboptim_s[:,z] = get_mass_on_suboptim(policy_s_, optimal_policy_s)
         mass_on_suboptim_r[:,z] = get_mass_on_suboptim(policy_r_, optimal_policy_r)
         # check if is a γ-nash
-        max_mass_on_suboptim_s[z] = maximum(mass_on_suboptim_s[:,z])
-        max_mass_on_suboptim_r[z] = maximum(mass_on_suboptim_r[.!off_path_messages[:,z],z])
+        max_mass_on_suboptim_s[z] = maximum_(mass_on_suboptim_s[:,z])
+        max_mass_on_suboptim_r[z] = maximum_(mass_on_suboptim_r[.!off_path_messages[:,z],z])
         max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
         is_nash[z] = max_mass_on_suboptim[z] < gtol
         # check if policy is partitional
@@ -94,34 +94,44 @@ end
 
 function get_q_s(policy_r::Array{Float32,2})
     # compute theoretical Q-matrix of the sender
-    return @turbo (policy_r*reward_matrix_s)'
+    return @fastmath (policy_r*reward_matrix_s)'
 end
 
 function get_q_r(policy_s::Array{Float32,2}; opb = p_t)
     # compute theoretical Q-matrix of the receiver
-    # conditional probability of being in state t given message m (bayes update)     
+    # conditional probability of being in state t given message m
     p_tm = get_posterior(policy_s)
     # off-path belief coincide with opb (default is prior)
     off_path_messages = get_off_path_messages(policy_s, tol = 1f-6)
     p_tm[:,off_path_messages] .= opb
-    return @turbo (reward_matrix_r * p_tm)'
+    return @fastmath (reward_matrix_r * p_tm)'
 end
 
 
 # best response functions
 
 function get_best_reply_r(policy_s::Array{Float32,2}; opb = p_t)
-    # get best reply to sender's stochastic policy (default off-path belief is prior)
+    # get best reply to sender's policy (default off-path belief is prior)
     q_r = get_q_r(policy_s; opb = opb)
-    best_reply = argmax_.(q_r[m,:] for m in 1:n_messages; tol=1f-7) # precison up to 1f-7 to catch all indifferences 
-    return convert_policy(best_reply, n_actions)
+    best_replies = argmax_.(q_r[m,:] for m in 1:n_messages; tol=1f-7) # precison up to 1f-7 to catch all indifferences 
+    return convert_policy(best_replies, n_actions)
 end
 
 function get_best_reply_s(policy_r::Array{Float32,2})
     # get best reply to receiver's policy   
     q_s = get_q_s(policy_r)
-    best_reply =  argmax_.(q_s[t,:] for t in 1:n_states; tol=1f-7)  # precison up to 1f-7 to catch all indifferences
-    return convert_policy(best_reply, n_messages)
+    best_replies =  argmax_.(q_s[t,:] for t in 1:n_states; tol=1f-7)  # precison up to 1f-7 to catch all indifferences
+    return convert_policy(best_replies, n_messages)
+end
+
+function convert_policy(best_replies::Array, n_actions::Int64)
+    # convert set of pure best replies to an equivalent stochastic policy with full support over pure best replies
+    policy = zeros(Float32, length(best_replies), n_actions)
+    @fastmath for state in 1:length(best_replies)
+        actions = best_replies[state]
+        policy[state, actions] .= 1.0f0 / length(actions)   # randomize uniformly over optimal actions
+    end
+    return policy
 end
 
 
@@ -129,7 +139,7 @@ end
 
 function get_induced_actions(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
     # get distribution of induced actions given policy_s and policy_r
-    return @turbo policy_s * policy_r
+    return @fastmath policy_s * policy_r
 end
 
 
@@ -157,29 +167,15 @@ function get_mutual_information(policy::Array{Float32,2})
     return @fastmath sum(policy[t,m]*p_t[t] * log2(policy[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy[t,m] != 0) / (-p_t' * log2.(p_t)) 
 end
 
+
 # policy
 
 function get_policy(Q::Array{Float32,2}, temp::Float32)
     # derive soft-max policy from Q-matrix
     policy = similar(Q)
-    @fastmath @inbounds for state in 1:size(Q,1)
+    @fastmath for state in 1:size(Q,1)
         max_val = maximum_(view(Q,state,:))
         policy[state,:] = exp.((Q[state,:].-max_val)/temp)/sum(exp.((Q[state,:].-max_val)/temp))
-    end
-    return policy
-end
-
-function convert_policy(policy_::Array, n_actions::Int64)
-    # convert deterministic policy to an equivalent full-support stochastic policy 
-    policy = zeros(Float32, length(policy_), n_actions)
-    @fastmath @inbounds for state in 1:length(policy_)
-        if size(policy_[state]) == ()
-            # if best action in state is unique, degenerate distribution
-            policy[state,policy_[state]] = 1.0f0
-        else
-            # if best action in state is not unique, randomize across best actions
-            policy[state,policy_[state]] .= 1.0f0 / length(policy_[state])
-        end
     end
     return policy
 end
@@ -207,20 +203,19 @@ end
 
 # policy analysis
 
-
 get_posterior(policy::Array{Float32,2}) = @fastmath p_t .* policy ./ (p_t'*policy)                              # posterior beliefs following each message
 get_off_path_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol) = @fastmath (p_t'*policy_s)' .<= tol     # bitmap off-path messages
 
 function get_mass_on_suboptim(policy::Array{Float32,2}, optimal_policy::Array{Float32,2})
     # compute probability mass on suboptim actions for each states
     suboptim_bitmap = (policy .> 0) .& .!(optimal_policy .> 0)
-    return sum(suboptim_bitmap .* policy, dims=2)
+    return @fastmath sum(suboptim_bitmap .* policy, dims=2)
 end
 
 function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = ptol)
     # check if policy of the sender is partitional 
     supp_policy_s = (policy_s .> tol)
-    @fastmath @inbounds for message in 1:n_messages-1
+    @fastmath for message in 1:n_messages-1
         for message_ in message+1:n_messages
             states = supp_policy_s[:,message] .|| supp_policy_s[:,message_]
             flags = xor.(supp_policy_s[states,message],supp_policy_s[states,message_])
@@ -231,10 +226,10 @@ function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = ptol)
 end
 
 function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol)
-    # count number of messages that have no synonyms
+    # bitmap of messages that have no synonyms
     n_on_path_messages = size(policy_s,2)
     has_no_synonyms = trues(n_on_path_messages)
-    @fastmath @inbounds for message1 in 1:n_on_path_messages-1
+    @fastmath for message1 in 1:n_on_path_messages-1
         has_no_synonyms[message1] || continue
         for message2 in message1+1:n_on_path_messages
             all(abs.(policy_s[:, message1] - policy_s[:, message2]) .< tol) || continue
