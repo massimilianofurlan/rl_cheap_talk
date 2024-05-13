@@ -213,7 +213,7 @@ for i in 1:length(unique_mutual_information_nash)
     start_point, end_point = existence_range[i, :]
     mi_value = unique_mutual_information_nash[i] 
     if mutual_information_best[set_biases_nash .== end_point][1] == mi_value # replace grey with red on benchmark
-    	end_point_idx = findfirst(mutual_information_best .== mi_value) - 1
+    	end_point_idx = findfirst(mutual_information_best .== mi_value)
     	end_point_idx > 0 || continue	# totally replaced by benchmark
     	end_point = set_biases_nash[end_point_idx]
     end
