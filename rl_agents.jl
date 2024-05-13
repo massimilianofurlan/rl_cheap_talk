@@ -15,14 +15,23 @@ function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=
         #rewards[ep,:] .= reward_s, reward_r                                # log utilities
         Q_s = update_q(Q_s, t, m, reward_s, alpha_s)                        # update Q-matrix of sender
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
-        n_s = is_approx(policy_s, policy_s_) ? n_s + 1 : 0                  # if policy approx unchanged increment else reset
-        n_r = is_approx(policy_r, policy_r_) ? n_r + 1 : 0                  # if policy approx unchanged increment else reset
-        n_s == 0 && copy!(policy_s_, policy_s)                              # if policy changed reset current policy
-        n_r == 0 && copy!(policy_r_, policy_r)                              # if policy changed reset current policy
+        n_s = is_approx_unchanged(policy_s, policy_s_, n_s)                 # if policy approx unchanged increment else reset
+        n_r = is_approx_unchanged(policy_r, policy_r_, n_r)                 # if policy approx unchanged increment else reset
         min(n_s, n_r) == convergence_threshold && break                     # break if policies have converged                
         ep += 1
     end
     return Q_s, Q_r, ep
+end
+
+function is_approx_unchanged(policy::Array{Float32,2}, policy_::Array{Float32,2}, n::Int64)
+    # if policy is approximately equal to policy_ increment n else reset to 0 and set new current policy
+    if is_approx(policy, policy_)
+        n += 1
+    else
+        n = 0
+        copy!(policy_, policy) 
+    end
+    return n
 end
 
 # Q-learning
@@ -95,18 +104,24 @@ end
 
 # reward of the agents
 
-function gen_reward_matrix(loss_type::String = loss_type)
-    # reward function for Crowfard and Sobel on a discretized unit line
-    function reward(a,t,b)
-        loss_type == "quadratic" && return -abs2(view(A,a) .- view(T,t) .- b)
-        loss_type == "absolute" && return -abs(view(A,a) .- view(T,t) .- b)
-        loss_type == "fourth" && return -(view(A,a) .- view(T,t) .- b)^4
+function reward(a::Int, t::Int, b::Float32, loss_type::String)
+    if loss_type == "quadratic"
+        return -abs2(A[a] - T[t] - b)
+    elseif loss_type == "absolute"
+        return -abs(A[a] - T[t] - b)
+    elseif loss_type == "fourth"
+        return -(A[a] - T[t] - b)^4
+    else
+        error("Invalid loss type specified")
     end
+end
+
+function gen_reward_matrix()
     reward_matrix_s = Array{Float32,2}(undef, n_actions, n_states)
     reward_matrix_r = Array{Float32,2}(undef, n_actions, n_states)
     for t in 1:n_states, a in 1:n_actions
-        reward_matrix_s[a,t] = reward(a,t,bias)
-        reward_matrix_r[a,t] = reward(a,t,0.0f0)
+        reward_matrix_s[a,t] = reward(a,t,bias,loss_type)
+        reward_matrix_r[a,t] = reward(a,t,0.0f0,loss_type)
     end
     return reward_matrix_s, reward_matrix_r
 end
@@ -128,7 +143,7 @@ end
 
 # prior distribution
 
-function gen_distribution(;dist_type::String = dist_type)
+function gen_distribution()
     # prior distribution over states of the world
     if dist_type == "uniform"
         p_t = ones(Float32, n_states) / n_states
