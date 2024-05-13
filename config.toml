@@ -14,7 +14,6 @@ lambda_r = 0.000005
 temp0_s = 0.1
 temp0_r = 0.1
 
-
 # BASE-CASE CONFIGURATION
 [basecase]
 # number of episodes
