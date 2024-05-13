@@ -17,7 +17,7 @@ function parse_commandline()
         "--config", "-c"
             arg_type = String
             help = "config section"
-	    default = "basecase"
+	        default = "basecase"
         "--out_dir", "-o"
             arg_type = String
             help = "output directory"
@@ -33,16 +33,15 @@ function parse_commandline()
             range_tester = x -> x > 0
         "--n_messages", "-m"
             arg_type = Int64
-            help = "number of messages (default: n_states)"
+            help = "number of messages, set to -1 to have as many messages as in the sender-preferred equilibrium (default: n_states)"
             range_tester = x -> (x > 0 || x == -1)
         "--n_actions", "-a"
             arg_type = Int64
             help = "number of actions (default: 2*n_states-1)"
             range_tester = x -> x > 0
-	   "--step_bias"
+       "--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
-            default = 0.01f0
         "--loss", "-l"
             arg_type = String
             help = "utility functions: \"quadratic\", \"fourth\" or \"absolute\""
@@ -53,11 +52,7 @@ function parse_commandline()
             help = "distribution over states: \"uniform\", \"increasing\", \"decreasing\", \"vshaped\", \"binomial\""
             default = "uniform"
             dest_name = "dist"  
-            range_tester = x -> x in ["uniform", "increasing", "decreasing" , "vshaped","binomial"] 
-        "--factor", "-k"
-            arg_type = Float32
-            help = "utility scale factor"
-            default = 1.0f0
+            range_tester = x -> x in ["uniform", "increasing", "decreasing" , "vshaped", "binomial"] 
     end
     parsed_args = parse_args(arg_settings)
     # default n_messages is n_states
@@ -81,18 +76,20 @@ const n_actions = config["n_actions"]
 const set_biases = 0.0f0:config["step_bias"]:0.5f0
 const loss = config["loss"]
 const distr = config["dist"]
-const k = config["factor"]
 const out_dir = config["out_dir"]
 const config_section = config["config"]
 
 for bias in set_biases
     # cycle over bias
-	println("BIAS: ", bias)
+    start_time = time()
+	print("b = ", bias, "\t| ")
 	run(`cd ../..`)
-	run(`julia  -t $n_cpus main.jl 
-				-n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr -k=$k 
+	run(`julia --check-bounds=no -t $n_cpus main.jl 
+	            -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr 
 				-o=$out_dir -c=$config_section -r -q`
 		)
+    end_time = time()
+    println(round(end_time - start_time, digits=1),"sec")
 end
 
 rm("$out_dir/temp",recursive=true,force=true)

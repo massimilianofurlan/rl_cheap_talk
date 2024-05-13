@@ -46,7 +46,7 @@ function extract_data(config, results, extracted_data)
 	# extract and process data from data structures
 
 	# read from files, some variables must be global
-	global bias = config["bias"]
+	global bias = Float32(config["bias"])
 	global reward_matrix_s, reward_matrix_r = gen_reward_matrix()
 
 	babbling_actions = argmax_(reward_matrix_r*p_t)
@@ -106,7 +106,8 @@ function extract_data(config, results, extracted_data)
         off_path_messages = get_off_path_messages(policy_s_)
 		n_on_path_messages[z] = n_messages - count(off_path_messages)
         # compute maximum mass on suboptim messages (actions) across states (messages)
-        mass_on_suboptim_s, mass_on_suboptim_r = get_mass_on_suboptim(policy_s_, policy_r_, optimal_policy_s, optimal_policy_r)
+        mass_on_suboptim_s = get_mass_on_suboptim(policy_s_, optimal_policy_s)
+        mass_on_suboptim_r = get_mass_on_suboptim(policy_r_, optimal_policy_r)
         max_mass_on_suboptim_s[z] = maximum(mass_on_suboptim_s)
     	max_mass_on_suboptim_r[z] = maximum(mass_on_suboptim_r[.!off_path_messages])
 		# check if is a nash
@@ -144,7 +145,7 @@ function get_equilibria(n_steps)
 	# only supports n_messages = n_states
 	best_nash = DefaultDict(() -> Array{Float32,1}(undef,n_steps))
 	set_nash = DefaultDict(() -> Array{Any,1}(undef,n_steps))
-	set_biases_ = range(0,0.5,n_steps)
+	set_biases_ = range(0f0,0.5f0,n_steps)
 	for i in 1:n_steps
 	    print("\rComputing benchmark $i/$n_steps")
 	    flush(stdout)
