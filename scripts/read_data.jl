@@ -172,8 +172,8 @@ function read_data(dir)
 	subdirs = subdirs[isdir.(subdirs)]
 	ndirs = length(subdirs)
 	if ndirs != length(set_biases)
-		println("Error: incomplete input\n")
-		return nothing, nothing, nothing, nothing
+		println("Error: input folder is incomplete or step_bias does not match\n")
+		exit()
 	end
 
 	# read configs that remain constant over all batches of simulations 

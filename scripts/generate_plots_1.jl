@@ -13,7 +13,7 @@ include(joinpath(pwd(),"scripts/plots.jl"))
 include(joinpath(pwd(),"scripts/read_data.jl"))
 
 # parse terminal config
-const scrpt_config = parse_commandline("out_basecase", 0.005f0)
+const scrpt_config = parse_commandline("out_basecase", 0.01f0)
 # define set of biases 
 const set_biases = collect(0.00f0:scrpt_config["step_bias"]:0.5f0)
 # define input dir 

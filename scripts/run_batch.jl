@@ -42,6 +42,7 @@ function parse_commandline()
        "--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
+            default = 0.01
         "--loss", "-l"
             arg_type = String
             help = "utility functions: \"quadratic\", \"fourth\" or \"absolute\""
