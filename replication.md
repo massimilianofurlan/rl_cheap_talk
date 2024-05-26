@@ -2,8 +2,7 @@
 
 All simulation outcomes (and relevant figures) used in the paper can be downloaded [here](https://livewarwickac-my.sharepoint.com/:f:/g/personal/u2251842_live_warwick_ac_uk/EmOVFRKxgNtGnIkBFbecMkABrXrcSSEhbfX3CzGJ3Az9RQ?e=4FYv0h). 
 
-The following section lists instructions to replicate each figure. 
-
+The following section lists instructions to replicate each figure. Simulations have been carried out on a High-Performance Computing (HPC) cluster (SLURM files can be found in the [slurm](https://github.com/massimilianofurlan/rl_cheap_talk/tree/main/slurm) folder).
 
 ## Replication instructions 
 

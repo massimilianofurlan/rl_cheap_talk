@@ -64,10 +64,10 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2023). Cheap 
     After running the script, Tikz plots can be generated using
 
     ```bash
-    julia --threads auto scripts/generate_plots_1.jl --in_dir OUT_DIR --step_bias=0.01
+    julia --threads auto scripts/generate_plots_1.jl --in_dir OUT_DIR --step_bias 0.01
     ```
 
-    where ```OUT_DIT``` must match the output folder of the previus command. Note that the incement in the bias must match che one used for script1.jl.
+    where ```OUT_DIR``` must match the output folder of the previus command. Also the incement in the bias must match che one used on the previus command.
     Generating plots requires an additional Julia dependency. To install it, run in the Julia REPL
     
     ```
