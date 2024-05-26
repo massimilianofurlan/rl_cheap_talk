@@ -3,11 +3,11 @@
 # Usage:
 # 1) configure the range of hyperparameters by editing scripts/2_config.toml 
 # 2) navigate back to the project directory 'rl_cheap_talk' 
-# 3) run 'julia --threads NUM_THREADS scripts/run_grid.jl -c CONFIGSECTION -o -OUT_DIR
+# 3) run 'julia --threads NUM_THREADS scripts/script2.jl -c CONFIGSECTION -o -OUT_DIR
 #    replace NUM_THREADS with the desired number of threads 
 #    replace CONFIGSECTION with desired config section of config.toml (project directory)
 #    replace OUT_DIR with the desired output dir
-# Run 'julia scripts/run_grid.jl --help' to se all the other options
+# Run 'julia scripts/script2.jl --help' to se all the other options
 
 using TOML
 using ArgParse

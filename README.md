@@ -56,7 +56,7 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2023). Cheap 
 3. **Others:** To automatically run a batch of simulations for each bias level in {0.0, 0.01, ..., 0.49, 0.5} use 
 
     ```bash
-    julia --threads auto scripts/gen_batch.jl --config CONFIG_SECTION --out_dir OUT_DIR --step_bias=0.01
+    julia --threads auto scripts/script1.jl --config CONFIG_SECTION --out_dir OUT_DIR --step_bias=0.01
     ```
 
     Replace ```CONFIG_SECTION``` with the desired section among those in the [config](config.toml) file and ```OUT_DIR``` with the desired name for the output directory. Use ```--help``` to get the complete list of options.  
@@ -67,7 +67,7 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2023). Cheap 
     julia --threads auto scripts/generate_plots_1.jl --in_dir OUT_DIR --step_bias=0.01
     ```
 
-    where ```OUT_DIT``` must match the output folder of the previus command. Note that the incement in the bias must match che one used for gen_batch.jl.
+    where ```OUT_DIT``` must match the output folder of the previus command. Note that the incement in the bias must match che one used for script1.jl.
     Generating plots requires an additional Julia dependency. To install it, run in the Julia REPL
     
     ```
