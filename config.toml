@@ -6,8 +6,8 @@ convergence_threshold = 10000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
 # learning rates
-alpha_s = 0.10
-alpha_r = 0.10
+alpha_s = 0.05
+alpha_r = 0.05
 # exploration decay
 lambda_s = 0.000005
 lambda_r = 0.000005
