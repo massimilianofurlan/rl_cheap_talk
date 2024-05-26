@@ -3,11 +3,11 @@
 # Usage:
 # 1) configure the range of hyperparameters by editing scripts/2_config.toml 
 # 2) navigate back to the project directory 'rl_cheap_talk' 
-# 3) run 'julia --threads NUM_THREADS scripts/2_script.jl -c CONFIG_SECTION -o -OUT_DIR
+# 3) run 'julia --threads NUM_THREADS scripts/run_grid.jl -c CONFIGSECTION -o -OUT_DIR
 #    replace NUM_THREADS with the desired number of threads 
-#    replace CONFIG_SECTION with desired config section of config.toml (project directory)
+#    replace CONFIGSECTION with desired config section of config.toml (project directory)
 #    replace OUT_DIR with the desired output dir
-# Run 'julia scripts/1_script.jl --help' to se all the other options
+# Run 'julia scripts/run_grid.jl --help' to se all the other options
 
 using TOML
 using ArgParse
@@ -74,29 +74,34 @@ function parse_commandline()
 end
 
 const n_cpus = Threads.nthreads()
-const config = TOML.parsefile("scripts/2_config.toml")
-const config_ = parse_commandline()
+const config = parse_commandline()
 
-const n_simulations = config_["n_simulations"]
-const n_states = config_["n_states"]
-const n_messages = config_["n_messages"]
-const n_actions = config_["n_actions"]
-const set_biases = 0.0f0:config_["step_bias"]:0.5f0
-const loss = config_["loss"]
-const distr = config_["dist"]
-const k = config_["factor"]
-const out_dir = config_["out_dir"]
-const config_section = config_["config"]
+const n_simulations = config["n_simulations"]
+const n_states = config["n_states"]
+const n_messages = config["n_messages"]
+const n_actions = config["n_actions"]
+const set_biases = 0.0f0:config["step_bias"]:0.5f0
+const loss = config["loss"]
+const distr = config["dist"]
+const k = config["factor"]
+const out_dir = config["out_dir"]
+const configsection = config["config"]
 
-const set_alpha = [config["min_alpha"] + 0.05*(i-1) for i in 1:config["n_alpha"]]
-const set_lambda = [config["min_lambda"]/i for i in 1:config["n_lambda"]]
+# grid config
+const min_alpha = 0.025
+const n_alpha = 5
+const min_lambda = 0.00002
+const n_lambda = 5
+
+const set_alpha = [min_alpha + 0.05*(i-1) for i in 1:n_alpha]
+const set_lambda = [min_lambda/i for i in 1:n_lambda]
 
 function modify_config_section(new_values)
     # modify config section with new values
     lines = readlines("config.toml")
     in_section = false
     for (i, line) in enumerate(lines)
-        if startswith(line, "[$config_section]")
+        if startswith(line, "[$configsection]")
             in_section = true
         elseif startswith(line, "[") && endswith(line, "]")
             in_section = false
@@ -122,9 +127,9 @@ for alpha in set_alpha
         for bias in set_biases
             # cycle over bias
             println("ALPHA: ", alpha , "\tDECAY: ", lambda , "\tBIAS: ", bias)
-            run(`julia  -t $n_cpus main.jl 
+            run(`julia  -t=$n_cpus main.jl 
                         -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr -k=$k 
-                        -o=$out_dir -c=$config_section -r`
+                        -o=$out_dir -c=$configsection -r`
                 )
         end
     end

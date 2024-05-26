@@ -1,11 +1,11 @@
 # This script runs a batch of N simulations for different levels of bias in [0.0,0.5]. 
 # Usage:
 # 1) navigate to the project directory 'rl_cheap_talk' 
-# 2) run 'julia --threads NUM_THREADS scripts/1_script.jl -c CONFIG_SECTION -o -OUT_DIR
+# 2) run 'julia --threads NUM_THREADS scripts/run_batch.jl -c CONFIG_SECTION -o -OUT_DIR
 #    replace NUM_THREADS with the desired number of threads 
 #    replace CONFIG_SECTION with desired config section of config.toml (project directory)
 #    replace OUT_DIR with the desired output dir
-# Run 'julia scripts/1_script.jl --help' to se all the other options
+# Run 'julia scripts/run_batch.jl --help' to se all the other options
 
 using TOML
 using ArgParse
@@ -84,7 +84,7 @@ for bias in set_biases
     start_time = time()
 	print("b = ", bias, "\t| ")
 	run(`cd ../..`)
-	run(`julia --check-bounds=no -t $n_cpus main.jl 
+	run(`julia --check-bounds=no -t=$n_cpus main.jl 
 	            -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr 
 				-o=$out_dir -c=$config_section -r -q`
 		)

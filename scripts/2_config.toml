@@ -1,7 +1,0 @@
-# this config file defines the range of reinforcement learning parameters;
-# namely the learning rate (alpha) and exploration decay rate (lambda) for 2_scripts.jl
-
-min_alpha = 0.025
-n_alpha = 5
-min_lambda = 0.00002
-n_lambda = 5
