@@ -270,5 +270,5 @@ function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict
     cp(temp_dir, out_dir, force=true)
 
     # shrink rewards and save directly on outputdir to avoid moving large files
-    save_all == true && save("$out_dir/rewards.jld2", Dict("rewards" => Float16.(rewards[1:maximum(results["n_episodes"]),:,:])))
+    #save_all == true && save("$out_dir/rewards.jld2", Dict("rewards" => Float16.(rewards[1:maximum(results["n_episodes"]),:,:])))
 end
