@@ -7,85 +7,103 @@ The following section lists instructions to replicate each figure.
 
 ## Replication instructions 
 
-### Figures 1 - 3
-To run the simulations navigate to the project directory (main branch) and run 
+### Figures 1, 3, 4, 5 and 6 
+To run the simulations navigate to the project directory and run 
 
-```julia --threads auto scripts/1_script.jl -c basecase -o out_basecase -N 1000```
-
-To generate the figures run
-
-```julia --threads auto scripts/1_plots.jl -i out_basecase ```
-
-
-### Figures 4 - 5
-To run the simulations navigate to the project directory (random-matching branch) and run 
-
-```julia --threads auto scripts/1_script.jl -c basecase -o out_rand_match -N 100```
+```julia --threads auto scripts/run_batch.jl -c basecase -o out_basecase -n 6 -N 1000 --step_bias 0.005```
 
 To generate the figures run
 
-```julia --threads auto scripts/2_plots.jl -i out_rand_match ```
+```julia --threads auto scripts/generate_plots_1.jl -i out_basecase --step_bias 0.005```
 
 
-### Figures 6 - 7
-To run the simulations navigate to the project directory (main branch) and run 
+### Figures 2 and 7
+To run the simulations navigate to the project directory and run 
 
-```julia --threads auto scripts/2_script.jl -c gridsearch -o out_grid_search -N 100```
+```julia --threads auto scripts/gen_grid.jl -c gridsearch -o out_grid_search -N 1000```
 
 To generate the figures run
 
-```julia --threads auto scripts/2_plots.jl -i out_grid_search ```
+```julia --threads auto scripts/generate_plots_2.jl -i out_grid_search ```
 
 
 ### Figure 8
-To run the simulations navigate to the project directory (main branch) and run 
+To run the simulations navigate to the project directory and run 
 
 ```
-julia --threads auto scripts/1_script.jl -c basecase -o out_6states -n 6 -N 1000
-julia --threads auto scripts/1_script.jl -c basecase -o out_11states -n 11 -N 1000
-julia --threads auto scripts/1_script.jl -c basecase -o out_41states -n 41 -N 1000
+julia --threads auto scripts/run_batch.jl -c basecase -o out_more_messages -n 6 -N 1000 --step_bias 0.005 -m 9
+julia --threads auto scripts/run_batch.jl -c basecase -o out_less_messages -n 6 -N 1000 --step_bias 0.005 -m 3
 ```
 
 To generate the figures run
 
 ```
-julia --threads auto scripts/1_plots.jl -i out_6states
-julia --threads auto scripts/1_plots.jl -i out_11states
-julia --threads auto scripts/1_plots.jl -i out_41states
+julia --threads auto scripts/generate_plots_1.jl -i out_more_messages --step_bias 0.005
+julia --threads auto scripts/generate_plots_1.jl -i out_less_messages --step_bias 0.005
 ```
 
 ### Figure 9
-To run the simulations navigate to the project directory (main branch) and run 
+To run the simulations navigate to the project directory and run 
 
 ```
-julia --threads auto scripts/1_script.jl -c basecase -o out_fourthpower -l fourth -N 1000
-julia --threads auto scripts/1_script.jl -c basecase -o out_absolute -l absolute -N 1000
-julia --threads auto scripts/1_script.jl -c basecase -o out_scaled -k 10 -N 1000
+julia --threads auto scripts/run_batch.jl -c basecase -o out_more_actions -n 6 -N 1000 --step_bias 0.005 -a 21
+julia --threads auto scripts/run_batch.jl -c basecase -o out_less_actions -n 6 -N 1000 --step_bias 0.005 -a 9
 ```
 
 To generate the figures run
 
 ```
-julia --threads auto scripts/1_plots.jl -i out_fourthpower
-julia --threads auto scripts/1_plots.jl -i out_absolute
-julia --threads auto scripts/1_plots.jl -i out_scaled
+julia --threads auto scripts/generate_plots_1.jl -i out_more_actions --step_bias 0.005
+julia --threads auto scripts/generate_plots_1.jl -i out_less_actions --step_bias 0.005
 ```
 
 
 ### Figure 10
 
-To run the simulations navigate to the project directory (main branch) and run 
+To run the simulations navigate to the project directory and run 
 
 ```
-julia --threads auto scripts/1_script.jl -c basecase -o out_binomial -d binomial -N 1000
-julia --threads auto scripts/1_script.jl -c basecase -o out_increasing -d increasing -N 1000
-julia --threads auto scripts/1_script.jl -c basecase -o out_decreasing -d decreasing -N 1000
+julia --threads auto scripts/run_batch.jl -c basecase -o out_3states -n 3 -N 1000 --step_bias 0.005
+julia --threads auto scripts/run_batch.jl -c basecase -o out_9states -n 9 -N 1000 --step_bias 0.005
 ```
 
 To generate the figures run
 
 ```
-julia --threads auto scripts/1_plots.jl -i out_binomial 
-julia --threads auto scripts/1_plots.jl -i out_increasing 
-julia --threads auto scripts/1_plots.jl -i out_decreasing
+julia --threads auto scripts/generate_plots_1.jl -i out_3states --step_bias 0.005
+julia --threads auto scripts/generate_plots_1.jl -i out_9states --step_bias 0.005
+```
+
+
+### Figure 11
+
+To run the simulations navigate to the project directory and run 
+
+```
+julia --threads auto scripts/run_batch.jl -c basecase -o out_fourthpower -n 6 -l fourth -N 1000 --step_bias 0.005
+julia --threads auto scripts/run_batch.jl -c basecase -o out_absolute -n 6 -l absolute -N 1000 --step_bias 0.005
+```
+
+To generate the figures run
+
+```
+julia --threads auto scripts/generate_plots_1.jl -i out_fourthpower --step_bias 0.005
+julia --threads auto scripts/generate_plots_1.jl -i out_absolute --step_bias 0.005
+```
+
+
+### Figure 12
+
+To run the simulations navigate to the project directory and run 
+
+```
+julia --threads auto scripts/run_batch.jl -c basecase -o out_increasing -n 6 -a 21 -d increasing -N 1000 --step_bias 0.005
+julia --threads auto scripts/run_batch.jl -c basecase -o out_decreasing -n 6 -a 21 -d decreasing -N 1000 --step_bias 0.005
+```
+
+To generate the figures run
+
+```
+julia --threads auto scripts/generate_plots_1.jl -i out_increasing --step_bias 0.005
+julia --threads auto scripts/generate_plots_1.jl -i out_decreasing --step_bias 0.005
 ```
