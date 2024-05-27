@@ -9,5 +9,5 @@
 module purge
 module load Julia/1.9.0-linux-x86_64
 
-srun julia --threads 48 scripts/script1.jl -c basecase -n 6 -N 1000 --step_bias=0.005 -o out_basecase
+srun julia --threads 48 --check-bounds no scripts/script1.jl -c basecase -n 6 -N 1000 --step_bias=0.005 -o out_basecase
 

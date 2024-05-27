@@ -42,7 +42,7 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2023). Cheap 
 2. **Basic Usage:** To run a batch of simulations use
 
     ```bash
-    julia --threads auto main.jl [options]
+    julia --threads=auto --check-bounds=no main.jl [options]
     ```
 
     You can replace ```auto``` with the desired number of threads. Options are primarily used to select the configuration of the game, such as the number of states, the extent of the sender's bias, the utility functions and the distribution over states. To get the complete list of options use  
@@ -56,18 +56,18 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2023). Cheap 
 3. **Others:** To automatically run a batch of simulations for each bias level in {0.0, 0.01, ..., 0.49, 0.5} use 
 
     ```bash
-    julia --threads auto scripts/script1.jl --config CONFIG_SECTION --out_dir OUT_DIR --step_bias=0.01
+    julia --threads=auto scripts/script1.jl --config=CONFIG_SECTION --out_dir=OUT_DIR --step_bias=0.01
     ```
 
-    Replace ```CONFIG_SECTION``` with the desired section among those in the [config](config.toml) file and ```OUT_DIR``` with the desired name for the output directory. Use ```--help``` to get the complete list of options.  
+    Replace ```CONFIG_SECTION``` with the desired section from the [config](config.toml) file and ```OUT_DIR``` with the desired name for the output directory. Use ```--help``` to get the complete list of options.  
 
-    After running the script, Tikz plots can be generated using
+    After running the script, TikZ plots can be generated using
 
     ```bash
-    julia --threads auto scripts/generate_plots_1.jl --in_dir OUT_DIR --step_bias 0.01
+    julia --threads=auto scripts/generate_plots_1.jl --in_dir=OUT_DIR --step_bias=0.01
     ```
 
-    where ```OUT_DIR``` must match the output folder of the previus command. Also the incement in the bias must match che one used on the previus command.
+    where ```OUT_DIR``` must match the output folder of the previous command. Also the increment in the bias must match che one used in the previous command.
     Generating plots requires an additional Julia dependency. To install it, run in the Julia REPL
     
     ```

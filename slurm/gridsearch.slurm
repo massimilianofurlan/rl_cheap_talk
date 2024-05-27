@@ -9,4 +9,4 @@
 module purge
 module load Julia/1.9.0-linux-x86_64
 
-srun julia --threads 48 scripts/script2.jl -c gridsearch -n 6 -o out_grid_search_new -N 1000
+srun julia --threads 48 --check-bounds no scripts/script2.jl -c gridsearch -n 6 -o out_grid_search_new -N 1000
