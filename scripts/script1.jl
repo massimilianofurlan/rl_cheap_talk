@@ -42,7 +42,7 @@ function parse_commandline()
        "--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"
-            default = 0.01
+            default = 0.01f0
         "--loss", "-l"
             arg_type = String
             help = "utility functions: \"quadratic\", \"fourth\" or \"absolute\""
@@ -85,7 +85,7 @@ for bias in set_biases
     start_time = time()
 	print("b = ", bias, "\t| ")
 	run(`cd ../..`)
-	run(`julia --check-bounds=no -t=$n_cpus main.jl 
+	run(`julia --check-bounds=no --threads=$n_cpus main.jl 
 	            -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr 
 				-o=$out_dir -c=$config_section -r -q`
 		)
