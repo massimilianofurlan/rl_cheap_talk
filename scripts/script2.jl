@@ -127,8 +127,8 @@ for alpha in set_alpha
         for bias in set_biases
             # cycle over bias
             println("ALPHA: ", alpha , "\tDECAY: ", lambda , "\tBIAS: ", bias)
-            run(`julia  -t=$n_cpus main.jl 
-                        -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr -k=$k 
+            run(`julia --check-bounds=no --threads=$n_cpus main.jl 
+                        -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr 
                         -o=$out_dir -c=$configsection -r`
                 )
         end
