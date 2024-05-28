@@ -411,7 +411,7 @@ pl_is_partitional = plot_eq_bound!(pl_is_partitional,mutual_information_best);
 
 
 # MODAL POLICIES
-bias_idxs = [1 + 5 * (2^i - 1) for i in 0:4]
+bias_idxs = trunc.(Int,[1 + (n_biases - 1) / 20 * (2^i - 1) for i in 0:4])
 group_policies_s, group_policies_r = [], []
 for bias_idx in bias_idxs
 	hm_modal_policy_s = plot_policy(modal_policy_s[:,:,bias_idx], raw"$\theta$", bias_idx == 1 ? raw"$m$" : "", 0:0.5:1, bias_idx == 1 ? (1:n_messages) : "", (n_states-1)/2, 1, string(raw"$b=",set_biases[bias_idx],raw"$"));
