@@ -93,8 +93,8 @@ const n_alpha = 5
 const min_lambda = 0.00002
 const n_lambda = 5
 
-const set_alpha = [min_alpha + 0.05*(i-1) for i in 1:n_alpha]
-const set_lambda = [min_lambda/i for i in 1:n_lambda]
+const set_alpha = [min_alpha*2^(i-1) for i in 1:n_alpha]
+const set_lambda = [min_lambda/2^(i-1) for i in 1:n_lambda]
 
 function modify_config_section(new_values)
     # modify config section with new values
