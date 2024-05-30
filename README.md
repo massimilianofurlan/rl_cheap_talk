@@ -1,6 +1,6 @@
 ## Overview
 
-This repository contains the code for [*"D. Condorelli, M. Furlan (2023). Cheap Talking Algorithms"*](https://arxiv.org/abs/2310.07867). Replication instructions are listed in the [replication](replication.md) file.
+This repository contains the code for [*"D. Condorelli, M. Furlan (2024). Cheap Talking Algorithms"*](https://arxiv.org/abs/2310.07867). Replication instructions are listed in the [replication](replication.md) file.
 
 ## Table of Contents
 
