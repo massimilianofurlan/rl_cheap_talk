@@ -23,6 +23,8 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2024). Cheap 
     Pkg.add("ProgressMeter")
     Pkg.add("Random")
     Pkg.add("StatsBase")
+    Pkg.add("PGFPlotsX")
+    Pkg.add("DataStructures")
     ```
     
 3. **Clone the Repository:** Clone this repository to your local machine.
