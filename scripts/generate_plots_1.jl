@@ -52,6 +52,7 @@ is_converged = cat(extracted_data["is_converged"]...,dims=2);
 expected_reward_s = cat(extracted_data["expected_reward_s"]...,dims=2);
 expected_reward_r = cat(extracted_data["expected_reward_r"]...,dims=2);
 mutual_information = cat(extracted_data["mutual_information"]...,dims=2);
+residual_variance = cat(extracted_data["residual_variance"]...,dims=2);
 absolute_error_s = cat(extracted_data["absolute_error_s"]...,dims=2);
 absolute_error_r = cat(extracted_data["absolute_error_r"]...,dims=2);
 max_absolute_error = cat(extracted_data["max_absolute_error"]...,dims=2);
@@ -67,6 +68,7 @@ babbling_reward_r = extracted_data["babbling_reward_r"];
 expected_reward_s_best = best_nash["expected_reward_s"];
 expected_reward_r_best = best_nash["expected_reward_r"];
 mutual_information_best = best_nash["mutual_information"];
+residual_variance_best = best_nash["residual_variance"];
 expected_reward_s_nash = set_nash["expected_reward_s"];
 expected_reward_r_nash = set_nash["expected_reward_r"];
 mutual_information_nash = set_nash["mutual_information"];
@@ -177,6 +179,21 @@ pl_mutual_information = plot_interpolated_val!(pl_mutual_information, mutual_inf
 babbling_mutual_information = fill(mutual_information_best[end],length(set_biases))
 pl_mutual_information = plot_val!(pl_mutual_information, babbling_mutual_information; legend = "babbling", color = "darkgray", style = "dotted");
 pl_mutual_information = plot_eq_bound!(pl_mutual_information,mutual_information_best);
+
+#RESIDUAL VARIANCE
+explained_variance = 1 .- residual_variance
+explained_variance_best = 1 .- residual_variance_best
+pl_explained_variance = plot_dist(explained_variance; title = "normalized explained variance", 
+													  legend = "simulations", 
+													  #ylabel = raw"$I$",
+													  color = "blue",
+													  legend_pos = "out_bottom",
+													  ymin=0, ymax=1, n_steps=65);
+# interpolate benchmark points to heatmap grid (removes heatmap value distorsion)
+pl_explained_variance = plot_interpolated_val!(pl_explained_variance, explained_variance_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4, ymin=0, ymax=1, n_steps=65);
+babbling_explained_variance = fill(explained_variance_best[end],length(set_biases))
+pl_explained_variance = plot_val!(pl_explained_variance, babbling_explained_variance; legend = "babbling", color = "darkgray", style = "dotted");
+pl_explained_variance = plot_eq_bound!(pl_explained_variance,explained_variance_best);
 
 # EXPECTED REWARDS (SENDER)
 group_pl_expected_reward_s = plot_dist(expected_reward_s; title = string(get_title_equation(1),"ex-ante expected reward (sender)"),
@@ -457,6 +474,7 @@ plots = [
     	("mutual_information", pl_mutual_information),
     	("mutual_information_modal", pl_modal_mutual_information),
     	("mutual_information_modal_nash", pl_modal_mutual_information_nash),
+    	("explained_variance", pl_explained_variance),
     	("group_expected_rewards", group_pl_expected_rewards),
     	("group_expected_rewards_modal", group_pl_modal_expected_rewards),
     	("group_expected_rewards_modal_nash", group_pl_modal_expected_rewards_nash),

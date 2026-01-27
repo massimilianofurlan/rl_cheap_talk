@@ -6,7 +6,6 @@ using TOML
 using JLD2
 using StatsBase
 using DataStructures
-using LoopVectorization
 using Random
 using ArgParse
 
@@ -73,6 +72,7 @@ function extract_data(config, results, extracted_data)
     absolute_error_r = Array{Float32,1}(undef, n_converged)
     max_absolute_error = Array{Float32,1}(undef, n_converged)
     mutual_information = Array{Float32,1}(undef, n_converged)
+    residual_variance = Array{Float32,1}(undef, n_converged)
     n_on_path_messages = Array{Int64,1}(undef, n_converged)
     max_mass_on_suboptim_s = Array{Float32,1}(undef, n_converged)
     max_mass_on_suboptim_r = Array{Float32,1}(undef, n_converged)
@@ -102,6 +102,7 @@ function extract_data(config, results, extracted_data)
 		max_absolute_error[z] = max(absolute_error_s[z], absolute_error_r[z])
         # compute communication metrics
         mutual_information[z] = get_mutual_information(policy_s_)
+        residual_variance[z] = get_residual_variance(policy_s_)
         # get on path messages
         off_path_messages = get_off_path_messages(policy_s_)
 		n_on_path_messages[z] = n_messages - count(off_path_messages)
@@ -127,6 +128,7 @@ function extract_data(config, results, extracted_data)
 	extracted_data["expected_reward_s"][i] = expected_reward_s
 	extracted_data["expected_reward_r"][i] = expected_reward_r
 	extracted_data["mutual_information"][i] = mutual_information
+	extracted_data["residual_variance"][i] = residual_variance
 	extracted_data["absolute_error_s"][i] = absolute_error_s
 	extracted_data["absolute_error_r"][i] = absolute_error_r
 	extracted_data["max_absolute_error"][i] = max_absolute_error
@@ -156,9 +158,11 @@ function get_equilibria(n_steps)
 		best_nash["expected_reward_s"][i] = best_nash_i["best_expected_reward_s"]
 		best_nash["expected_reward_r"][i] = best_nash_i["best_expected_reward_r"]
 		best_nash["mutual_information"][i] = best_nash_i["best_mutual_information"]
+		best_nash["residual_variance"][i] = best_nash_i["best_residual_variance"]
 		set_nash["expected_reward_s"][i] = set_nash_i["expected_reward_s"]
 		set_nash["expected_reward_r"][i] = set_nash_i["expected_reward_r"]
 		set_nash["mutual_information"][i] = set_nash_i["mutual_information"]
+		set_nash["residual_variance"][i] = set_nash_i["residual_variance"]
 		set_nash["induced_actions"][i] = set_nash_i["induced_actions"]
 	end
 	println()
