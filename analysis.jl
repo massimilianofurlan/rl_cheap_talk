@@ -97,7 +97,7 @@ end
 
 function get_q_s(policy_r::Array{Float32,2})
     # compute theoretical Q-matrix of the sender
-    return @fastmath (policy_r*reward_matrix_s)'
+    return @fastmath Matrix{Float32}((policy_r*reward_matrix_s)')
 end
 
 function get_q_r(policy_s::Array{Float32,2}; opb = p_t)
@@ -107,7 +107,7 @@ function get_q_r(policy_s::Array{Float32,2}; opb = p_t)
     # off-path belief coincide with opb (default is prior)
     off_path_messages = get_off_path_messages(policy_s, tol = 1f-6)
     p_tm[:,off_path_messages] .= opb
-    return @fastmath (reward_matrix_r * p_tm)'
+    return @fastmath Matrix{Float32}((reward_matrix_r * p_tm)')
 end
 
 
