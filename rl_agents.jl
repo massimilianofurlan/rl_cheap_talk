@@ -1,9 +1,9 @@
 
 # play and learn: training 
 
-function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=MersenneTwister())
+function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, rewards::AbstractArray{Float32,2}; rng::MersenneTwister=MersenneTwister())
     # main function, runs simulation and returns Q matrices of the agents 
-    Q_s, Q_r, policy_s, policy_r = init_agents(rng)                         # initialize Q-matrices and policies of the agents
+    policy_s, policy_r = get_policy(Q_s, temp0_s), get_policy(Q_r, temp0_r) # initialize policies
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
     n_r, n_s, ep = 0, 0, 1                                                  # n_s, s_r count episodes w/ similar policy
     while ep < n_max_episodes
@@ -51,9 +51,7 @@ function init_agents(rng::MersenneTwister)
         Q_s = babbling_reward_s * ones(Float32, n_states, n_messages)
         Q_r = babbling_reward_r * ones(Float32, n_messages, n_actions)
     end
-    policy_s = get_policy(Q_s, temp0_s)
-    policy_r = get_policy(Q_r, temp0_r)
-    return Q_s, Q_r, policy_s, policy_r
+    return Q_s, Q_r
 end
 
 function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, temp::Float32, state::Int64, rng::MersenneTwister)

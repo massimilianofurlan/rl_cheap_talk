@@ -110,8 +110,8 @@ function main()
     # main loop
     @time Threads.@threads for z in 1:n_simulations
         rng = rngs[z]
-        rewards_ = view(rewards,:,:,z)  # views are passed by reference
-        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(rewards_, rng=rng);    
+        Q0_s, Q0_r = init_agents(rng)   # initialize Q-matrices
+        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(Q0_s, Q0_r, @view(rewards[:,:,z]), rng=rng);
         quiet || next!(progress)
     end
 
