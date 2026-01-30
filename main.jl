@@ -18,7 +18,6 @@ const output_dir, temp_dir = gen_dirs()
 
 # SETTINGS
 const quiet = config["quiet"]
-const save_all = config["save_all"]
 const save_ = config["save"]
 const raw = config["raw"]
 
@@ -101,7 +100,6 @@ function main()
     # preallocate output arrays
     Q_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations);
     Q_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations);
-    rewards = Array{Float32,3}(undef, n_max_episodes, n_agents, n_simulations);
     n_episodes = Array{Int64,1}(undef, n_simulations);
 
     rngs = [MersenneTwister(z) for z in 1:n_simulations]
@@ -111,7 +109,7 @@ function main()
     @time Threads.@threads for z in 1:n_simulations
         rng = rngs[z]
         Q0_s, Q0_r = init_agents(rng)   # initialize Q-matrices
-        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(Q0_s, Q0_r, @view(rewards[:,:,z]), rng=rng);
+        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(Q0_s, Q0_r, rng=rng);
         quiet || next!(progress)
     end
 
@@ -124,7 +122,7 @@ function main()
     show_experiment_outcomes(set_nash, best_nash, statistics)
 
     println(save_ ? stdout : devnull, "saving data to file...") 
-    @time save__(set_nash, best_nash, results, statistics, rewards)
+    @time save__(set_nash, best_nash, results, statistics)
 end
 
 Random.seed!(0)

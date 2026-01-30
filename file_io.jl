@@ -61,9 +61,6 @@ function parse_commandline()
         "--raw", "-r"
             help = "flag to exclusively run simulations and collect raw output"
             action = :store_true
-        "--save_all", "-S"
-            help = "flag to save all results (including reward paths)"
-            action = :store_true
         "--out_dir", "-o"
             arg_type = String
             help = "output directory name"
@@ -84,15 +81,10 @@ function parse_commandline()
     if parsed_args["n_actions"] == nothing
         parsed_args["n_actions"] = 2 * parsed_args["n_states"] - 1
     end
-    # save_all implies saving
-    if parsed_args["save_all"] == true
-        parsed_args["save"] = true
-    end
     # raw mode is quiet and does not save_all
     if parsed_args["raw"] == true
         parsed_args["save"] = true
         parsed_args["quiet"] = true
-        parsed_args["save_all"] = false
     end
     return parsed_args
 end
@@ -252,7 +244,7 @@ end
 
 # others
 
-function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict, rewards::Array{Float32,3})
+function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict)
     save_ || return nothing
    
     game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type], "_") # noise is omitted
@@ -270,6 +262,4 @@ function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict
     # move temp to folder (this overwrites the content of the destination)
     cp(temp_dir, out_dir, force=true)
 
-    # shrink rewards and save directly on outputdir to avoid moving large files
-    #save_all == true && save("$out_dir/rewards.jld2", Dict("rewards" => Float16.(rewards[1:maximum(results["n_episodes"]),:,:])))
 end
