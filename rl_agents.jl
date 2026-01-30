@@ -1,7 +1,7 @@
 
 # play and learn: training 
 
-function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, rewards::AbstractArray{Float32,2}; rng::MersenneTwister=MersenneTwister())
+function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::MersenneTwister=MersenneTwister())
     # main function, runs simulation and returns Q matrices of the agents 
     policy_s, policy_r = get_policy(Q_s, temp0_s), get_policy(Q_r, temp0_r) # initialize policies
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
@@ -9,10 +9,8 @@ function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, rewards::A
     while ep < n_max_episodes
         t = sample_(rng, p_t)                                               # draw state of the world from prior
         m = get_action(policy_s, Q_s, temp_s[ep], t, rng)                   # get action of sender (softmax)
-        #x = get_signal(m, rng)                                             # get noisy signal from channel
         a = get_action(policy_r, Q_r, temp_r[ep], m, rng)                   # get action of receiver (softmax)
         reward_s, reward_r = reward_matrix_s[a,t], reward_matrix_r[a,t]     # get utilities
-        #rewards[ep,:] .= reward_s, reward_r                                # log utilities
         Q_s = update_q(Q_s, t, m, reward_s, alpha_s)                        # update Q-matrix of sender
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
         n_s = is_approx_unchanged(policy_s, policy_s_, n_s)                 # if policy approx unchanged increment else reset
