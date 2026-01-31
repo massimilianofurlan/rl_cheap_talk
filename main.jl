@@ -108,7 +108,9 @@ function main()
     # main loop
     @time Threads.@threads for z in 1:n_simulations
         rng = rngs[z]
-        Q0_s, Q0_r = init_agents(rng)   # initialize Q-matrices
+        # initialize Q-matrices
+        Q0_s, Q0_r = init_agents(rng)
+        # run simulation
         Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(Q0_s, Q0_r, rng=rng);
         quiet || next!(progress)
     end

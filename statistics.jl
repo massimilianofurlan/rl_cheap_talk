@@ -129,7 +129,6 @@ function get_nash_ids(induced_actions::Array{Float32,3}, nash_induced_actions::A
     return nash_ids
 end
 
-
 function get_class_ids(induced_actions::Array{Float32,3}; tol::Float32 = rtol)
     # returns similarity class ids
     class_ids, curr_id = zeros(Int, n_simulations), 0
@@ -138,10 +137,23 @@ function get_class_ids(induced_actions::Array{Float32,3}; tol::Float32 = rtol)
         for j in i+1:n_simulations
             class_ids[j] == 0 || continue
             is_approx(induced_actions[:,:,i], induced_actions[:,:,j]; tol=tol) || continue
-            class_ids[j] = class_ids[i]     # Assign to the same class if similar
+            # assign to the same class if similar
+            class_ids[j] = class_ids[i]
         end
     end
     return class_ids
+end
+
+function get_nash_dists(induced_actions::Array{Float32,3}, nash_induced_actions::Array{Float32,3})
+    # compute distance in l2-norm form each partitonal equilibrium
+    n_nash = size(nash_induced_actions,3)
+    nash_dists = Array{Float32,2}(undef, n_nash, n_simulations)
+    @inbounds @fastmath for z in 1:n_simulations
+        for nash_id in 1:n_nash
+            nash_dists[nash_id, z] = norm_(induced_actions[:,:,z] - nash_induced_actions[:,:,nash_id])
+        end
+    end
+    return nash_dists
 end
 
 
