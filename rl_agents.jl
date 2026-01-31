@@ -161,6 +161,15 @@ end
 
 # generic functions
 
+function norm_(A::Array{Float32,2})
+    # fast l2 norm()
+    norm_A = 0.0f0
+    @fastmath for i in eachindex(A)
+        norm_A += abs2(A[i])
+    end
+    return sqrt(norm_A)
+end
+
 function is_approx(A::Array{Float32,2}, A_::Array{Float32,2}; tol::Float32 = rtol)
     # fast isapprox(), discussion at https://discourse.julialang.org/t/faster-isapprox/101202/8
     norm_A, norm_A_, norm_diff = 0.0f0, 0.0f0, 0.0f0
