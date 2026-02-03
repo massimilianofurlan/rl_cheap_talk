@@ -162,7 +162,7 @@ end
 # generic functions
 
 function norm_(A::Array{Float32,2})
-    # fast l2 norm()
+    # fast l2 norm(), related to discussion at https://discourse.julialang.org/t/faster-isapprox/101202/8
     norm_A = 0.0f0
     @fastmath for i in eachindex(A)
         norm_A += abs2(A[i])
