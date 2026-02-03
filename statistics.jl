@@ -70,6 +70,9 @@ function compute_group_statistics(results, group)
     n_effective_messages = results["n_effective_messages"][group]
     is_partitional = results["is_partitional"][group]
     is_nash = results["is_nash"][group]
+    is_absorbing = results["is_absorbing"][group]
+    Q_s_gap = results["Q_s_gap"][:,group]
+    Q_r_gap = results["Q_r_gap"][:,group]
 
     # average episodes played, frequence in group
     freq = count(group) / n_simulations
@@ -90,6 +93,9 @@ function compute_group_statistics(results, group)
     avg_n_effective_messages = mean_std(n_effective_messages)
     # freq partitional policy 
     freq_partitional = mean_std(is_partitional)
+    # average Q gaps
+    avg_Q_s_gap = dropdims(mean(Q_s_gap, dims=2), dims=2)
+    avg_Q_r_gap = dropdims(mean(Q_r_gap, dims=2), dims=2)
 
     # epsilon-nash 
     min_absolute_error = min.(absolute_error_s,absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
@@ -102,13 +108,16 @@ function compute_group_statistics(results, group)
     quant_max_mass_on_suboptim = quantile(max_mass_on_suboptim, [0.25,0.5,0.75])
     # frequence (γ < 1f-2)-nash 
     freq_nash = count(is_nash) / n_group
+    # frequence is fixed point
+    freq_is_absorbing = count(is_absorbing) / n_group
+
 
     statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional)
+                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_Q_s_gap, avg_Q_r_gap)
     var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional)
+                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_Q_s_gap, avg_Q_r_gap)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
 end
@@ -144,7 +153,7 @@ function get_class_ids(induced_actions::Array{Float32,3}; tol::Float32 = rtol)
     return class_ids
 end
 
-function get_nash_dists(induced_actions::Array{Float32,3}, nash_induced_actions::Array{Float32,3})
+#=function get_nash_dists(induced_actions::Array{Float32,3}, nash_induced_actions::Array{Float32,3})
     # compute distance in l2-norm form each partitonal equilibrium
     n_nash = size(nash_induced_actions,3)
     nash_dists = Array{Float32,2}(undef, n_nash, n_simulations)
@@ -154,6 +163,6 @@ function get_nash_dists(induced_actions::Array{Float32,3}, nash_induced_actions:
         end
     end
     return nash_dists
-end
+end=#
 
 
