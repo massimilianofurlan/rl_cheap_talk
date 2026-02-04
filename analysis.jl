@@ -195,23 +195,23 @@ function get_expected_rewards(induced_actions::Array{Float32,2})
     return reward_s, reward_r
 end
 
-function get_mutual_information(policy::Array{Float32,2})
+function get_mutual_information(policy_s::Array{Float32,2})
     # compute normalized mutual information between m and t 
     # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
-    @fastmath p_m = policy'p_t
-    return @fastmath sum(policy[t,m]*p_t[t] * log2(policy[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy[t,m] != 0) / (-p_t' * log2.(p_t)) 
+    @fastmath p_m = policy_s'p_t
+    return @fastmath sum(policy_s[t,m]*p_t[t] * log2(policy_s[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy_s[t,m] != 0) / (-p_t' * log2.(p_t)) 
 end
 
-function get_residual_variance(policy::Array{Float32,2})
+function get_residual_variance(policy_s::Array{Float32,2})
     # compute residual variance
     # expected value the state, E(t) = \sum_t p(t) t
     @fastmath e_t = p_t'T
     # variance of the state, V(t) = \sum_t p(t) (t - E(t))^2
     @fastmath v_t = sum(p_t[t] * (T[t]-e_t)^2 for t in 1:n_states)
     # conditional probability of being in state t given message m
-    p_tm = get_posterior(policy)
+    p_tm = get_posterior(policy_s)
     # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
-    @fastmath p_m = policy'p_t
+    @fastmath p_m = policy_s'p_t
     # expected value of the state conditional on m, E(t|m) = \sum_t p(t|m) t
     @fastmath e_tm = sum(p_tm[t,:]*T[t] for t in 1:n_states)
     # variance of the state conditional on m, V(t|m) = \sum_t p(t|m) (t - E(t|m))^2
