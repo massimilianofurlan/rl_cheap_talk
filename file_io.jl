@@ -27,7 +27,7 @@ function parse_commandline()
         "--bias", "-b"
             arg_type = Float32
             help = "sender's bias"
-            default = 0.1f0
+            default = 0.075f0
             range_tester = x -> x >= 0.0f0
         "--loss", "-l"
             arg_type = String
@@ -150,6 +150,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     best_nash_table::Any = []
     push!(best_nash_table, ["n_messages_on_path" best_nash["n_messages_on_path"]])    
     push!(best_nash_table, ["best_mutual_info" round(best_nash["best_mutual_information"], digits=4)])    
+    push!(best_nash_table, ["best_residual_var" round(best_nash["best_residual_variance"], digits=4)])
     push!(best_nash_table, ["best_expe_rewards_s" round(best_nash["best_expected_reward_s"], digits=4)])
     push!(best_nash_table, ["best_expe_rewards_r" round(best_nash["best_expected_reward_r"], digits=4)])
     push!(best_nash_table, ["is_borderline" best_nash["is_borderline"]])
@@ -182,7 +183,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(statistics_table, statistics, "quant_max_mass_on_suboptim", text = "gamma_nash (.25, .50, 0.75)")
     add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-2)"; std = false)
     open("$temp_dir/experiment_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,40], hlines = [0,1,6])
+        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,40], hlines = [0,1,7])
         pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,40,40], hlines = [0,1,2,4,5,7,8,13,14,17,18,21,22,26])
     end
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
@@ -191,6 +192,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     nash_header = (["NASH"; nash_idxs...])
     nash_table::Any = []
     push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_entry(statistics[0],"avg_mutual_information")]))
+    push!(nash_table, hcat(["residual_variance" format_txt.(set_nash["residual_variance"])... format_entry(statistics[0],"avg_residual_variance")]))
     push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_entry(statistics[0],"avg_expected_reward_s")]))
     push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_entry(statistics[0],"avg_expected_reward_r")]))
     push!(nash_table, hcat(["is_absorbing" set_nash["is_absorbing"]... format_entry(statistics[0],"freq_is_absorbing")]))
@@ -201,7 +203,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(nash_table, statistics, "freq_partitional", std=false, keys_=nash_idxs)
     add_row(nash_table, statistics, "freq_is_absorbing", std=false, keys_=nash_idxs)
     open("$temp_dir/nash_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,5,6,11])
+        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,6,7,12])
     end
     quiet || run(`cat $temp_dir/nash_outcomes.txt`)
 
@@ -211,6 +213,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     class_header = (["NOT ALL NASH (CLASSES)"; -class_idxs...])
     class_table::Any = []
     add_row(class_table, statistics, "avg_mutual_information", keys_=class_idxs)
+    add_row(class_table, statistics, "avg_residual_variance", keys_=class_idxs)
     add_row(class_table, statistics, "avg_expected_reward_s", keys_=class_idxs)
     add_row(class_table, statistics, "avg_expected_reward_r", keys_=class_idxs)
     add_row(class_table, statistics, "freq", std=false, keys_=class_idxs)
@@ -220,7 +223,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(class_table, statistics, "freq_partitional", std=false, keys_=class_idxs)
     add_row(class_table, statistics, "freq_is_absorbing", std=false, keys_=class_idxs)
     open("$temp_dir/class_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, class_table), header = class_header, hlines = [0,1,4,5,10])
+        pretty_table(io, reduce(vcat, class_table), header = class_header, hlines = [0,1,5,6,11])
     end
     quiet || run(`cat $temp_dir/class_outcomes.txt`)
     end
@@ -232,6 +235,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
             write(io, "\n\nEx-ante Expected Reward Sender: \t$(set_nash["expected_reward_s"][nash_idx])")
             write(io, "\nEx-ante Expected Reward Receiver: \t$(set_nash["expected_reward_r"][nash_idx])")
             write(io, "\nMutual Information: \t\t\t$(set_nash["mutual_information"][nash_idx])")
+            write(io, "\nResidual Variance: \t\t\t$(set_nash["residual_variance"][nash_idx])")
             write(io, "\nFixed Point: \t\t\t\t$(set_nash["is_absorbing"][nash_idx])")
             write(io, "\n\nPolicy Sender: ")
             policy_s = set_nash["policy_s"][:,:,nash_idx]
