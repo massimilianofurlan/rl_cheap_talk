@@ -90,7 +90,7 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # check if agents have converged 
         is_converged[z] = n_episodes[z] < n_max_episodes
         # check if Q_s,Q_r induce self-confirming policies
-        is_absorbing[z] = isabsorbing(policy_s_, policy_r_, Q_s[:,:,z], Q_r[:,:,z])
+        is_absorbing[z] = isabsorbing(Q_s[:,:,z], Q_r[:,:,z], policy_s_, policy_r_)
     end
 
     # convert results to dict
