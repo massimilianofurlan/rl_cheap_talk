@@ -78,8 +78,8 @@ const lambda_r::Float32 = config["lambda_r"]
 const temp0_s::Float32 = config["temp0_s"]
 const temp0_r::Float32 = config["temp0_r"]
 # exploration decay
-const temp_s = [max(temp0_s * exp(-lambda_s*(t-1)), 1f-30) for t in 1:n_max_episodes]
-const temp_r = [max(temp0_r * exp(-lambda_r*(t-1)), 1f-30) for t in 1:n_max_episodes]
+const temp_s = [max(temp0_s * exp(-lambda_s*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
+const temp_r = [max(temp0_r * exp(-lambda_r*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
 
 # tolerance on convergence of policies
 const rtol = 0.001f0
