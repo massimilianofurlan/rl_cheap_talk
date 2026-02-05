@@ -71,8 +71,8 @@ function compute_group_statistics(results, group)
     is_partitional = results["is_partitional"][group]
     is_nash = results["is_nash"][group]
     is_absorbing = results["is_absorbing"][group]
-    Q_s_gap = results["Q_s_gap"][:,group]
-    Q_r_gap = results["Q_r_gap"][:,group]
+    margin_error_s = results["margin_error_s"][:,group]
+    margin_error_r = results["margin_error_r"][:,group]
 
     # average episodes played, frequence in group
     freq = count(group) / n_simulations
@@ -93,9 +93,9 @@ function compute_group_statistics(results, group)
     avg_n_effective_messages = mean_std(n_effective_messages)
     # freq partitional policy 
     freq_partitional = mean_std(is_partitional)
-    # average Q gaps
-    avg_Q_s_gap = dropdims(mean(Q_s_gap, dims=2), dims=2)
-    avg_Q_r_gap = dropdims(mean(Q_r_gap, dims=2), dims=2)
+    # average margin estimation error
+    avg_margin_error_s = dropdims(mean(margin_error_s, dims=2), dims=2)
+    avg_margin_error_r = dropdims(mean(margin_error_r, dims=2), dims=2)
 
     # epsilon-nash 
     min_absolute_error = min.(absolute_error_s,absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
@@ -114,10 +114,10 @@ function compute_group_statistics(results, group)
 
     statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_Q_s_gap, avg_Q_r_gap)
+                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
     var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_Q_s_gap, avg_Q_r_gap)
+                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
 end

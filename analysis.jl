@@ -12,8 +12,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
     policy_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations)
     q_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
     q_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations)
-    Q_s_gap =  Array{Float32,2}(undef, n_states, n_simulations)
-    Q_r_gap =  Array{Float32,2}(undef, n_messages, n_simulations)
+    margin_error_s =  Array{Float32,2}(undef, n_states, n_simulations)
+    margin_error_r =  Array{Float32,2}(undef, n_messages, n_simulations)
     induced_actions = Array{Float32,3}(undef, n_states, n_actions, n_simulations)
     expected_reward_s = Array{Float32,1}(undef, n_simulations)
     expected_reward_r = Array{Float32,1}(undef, n_simulations)
@@ -50,9 +50,9 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # get true q-matrices
         q_s[:,:,z] = get_q_s(policy_r_)
         q_r[:,:,z] = get_q_r(policy_s_)
-        # get Q gaps
-        Q_s_gap[:,z] = get_Q_margin(Q_s[:,:,z]) - get_Q_margin(q_s[:,:,z])
-        Q_r_gap[:,z] = get_Q_margin(Q_r[:,:,z]) - get_Q_margin(q_r[:,:,z])
+        # get margin estimation error
+        margin_error_s[:,z] = get_Q_margin(Q_s[:,:,z]) - get_Q_margin(q_s[:,:,z])
+        margin_error_r[:,z] = get_Q_margin(Q_r[:,:,z]) - get_Q_margin(q_r[:,:,z])
         # compute induced actions at convergence
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)
         # compute (ex-ante) expected rewards at convergence
@@ -94,12 +94,12 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
     end
 
     # convert results to dict
-    results = (Q_s, Q_r, policy_s, policy_r, q_s, q_r, Q_s_gap, Q_r_gap, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
+    results = (Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
                 absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, babbling_reward_s, babbling_reward_r,
                 off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
                 max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing)
                 
-    var_names = @names(Q_s, Q_r, policy_s, policy_r, q_s, q_r, Q_s_gap, Q_r_gap, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
+    var_names = @names(Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
                 absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, babbling_reward_s, babbling_reward_r,
                 off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
                 max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing)
