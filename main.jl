@@ -18,7 +18,6 @@ const output_dir, temp_dir = gen_dirs()
 
 # SETTINGS
 const quiet = config["quiet"]
-const save_all = config["save_all"]
 const save_ = config["save"]
 const raw = config["raw"]
 
@@ -79,8 +78,8 @@ const lambda_r::Float32 = config["lambda_r"]
 const temp0_s::Float32 = config["temp0_s"]
 const temp0_r::Float32 = config["temp0_r"]
 # exploration decay
-const temp_s = [max(temp0_s * exp(-lambda_s*(t-1)), 1f-30) for t in 1:n_max_episodes]
-const temp_r = [max(temp0_r * exp(-lambda_r*(t-1)), 1f-30) for t in 1:n_max_episodes]
+const temp_s = [max(temp0_s * exp(-lambda_s*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
+const temp_r = [max(temp0_r * exp(-lambda_r*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
 
 # tolerance on convergence of policies
 const rtol = 0.001f0
@@ -101,7 +100,6 @@ function main()
     # preallocate output arrays
     Q_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations);
     Q_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations);
-    rewards = Array{Float32,3}(undef, n_max_episodes, n_agents, n_simulations);
     n_episodes = Array{Int64,1}(undef, n_simulations);
 
     rngs = [MersenneTwister(z) for z in 1:n_simulations]
@@ -110,8 +108,10 @@ function main()
     # main loop
     @time Threads.@threads for z in 1:n_simulations
         rng = rngs[z]
-        rewards_ = view(rewards,:,:,z)  # views are passed by reference
-        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(rewards_, rng=rng);    
+        # initialize Q-matrices
+        Q0_s, Q0_r = init_agents(rng)
+        # run simulation
+        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(Q0_s, Q0_r, rng=rng);
         quiet || next!(progress)
     end
 
@@ -124,7 +124,7 @@ function main()
     show_experiment_outcomes(set_nash, best_nash, statistics)
 
     println(save_ ? stdout : devnull, "saving data to file...") 
-    @time save__(set_nash, best_nash, results, statistics, rewards)
+    @time save__(set_nash, best_nash, results, statistics)
 end
 
 Random.seed!(0)

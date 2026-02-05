@@ -129,11 +129,14 @@ function get_monotone_partitional_equilibria()
     n_policies_s = 2^(n_states-1)
     policy_s = Array{Float32,3}(undef,n_states,n_messages,n_policies_s)
     policy_r = Array{Float32,3}(undef,n_messages,n_actions,n_policies_s)
+    q_s = Array{Float32,3}(undef,n_states,n_messages,n_policies_s)
+    q_r = Array{Float32,3}(undef,n_messages,n_actions,n_policies_s)
     induced_actions = Array{Float32,3}(undef,n_states,n_actions,n_policies_s)
     expected_reward_s = Array{Float32,1}(undef,n_policies_s)
     expected_reward_r = Array{Float32,1}(undef,n_policies_s)
     mutual_information = Array{Float32,1}(undef,n_policies_s)
     residual_variance = Array{Float32,1}(undef,n_policies_s)
+    is_absorbing = zeros(Bool,n_policies_s)
     is_nash = zeros(Bool,n_policies_s)
     for idx in 2^(n_states-1) : -1 : 1
         partition = digits(idx-1, base=2, pad=(n_states-1))                 # i-th possible partition
@@ -145,32 +148,41 @@ function get_monotone_partitional_equilibria()
         # if here, (policy_s_, policy_r_) is an equilibrium
         policy_s[:,:,idx] .= policy_s_
         policy_r[:,:,idx] .= policy_r_
+        q_s[:,:,idx] = get_q_s(policy_r_)
+        q_r[:,:,idx] = get_q_r(policy_s_)
         induced_actions[:,:,idx] .= get_induced_actions(policy_s_,policy_r_)    
         expected_reward_s[idx], expected_reward_r[idx] = get_expected_rewards(policy_s_, policy_r_)
         residual_variance[idx] = get_residual_variance(policy_s_)
         mutual_information[idx] = get_mutual_information(policy_s_)
+        is_absorbing[idx] = isabsorbing(q_s[:,:,idx], q_r[:,:,idx], policy_s_, policy_r_)
         is_nash[idx] = true
     end
     policy_s = policy_s[:,:,is_nash]
     policy_r = policy_r[:,:,is_nash]
+    q_s = q_s[:,:,is_nash]
+    q_r = q_r[:,:,is_nash]
     induced_actions = induced_actions[:,:,is_nash]
     expected_reward_s = expected_reward_s[is_nash] 
     expected_reward_r = expected_reward_r[is_nash]
     mutual_information = mutual_information[is_nash]
     residual_variance = residual_variance[is_nash]
+    is_absorbing = is_absorbing[is_nash]
     n_nash = count(is_nash)
 
     perm = sortperm(-mutual_information)
     policy_s = policy_s[:,:,perm]
     policy_r = policy_r[:,:,perm]
+    q_s = q_s[:,:,perm]
+    q_r = q_r[:,:,perm]
     induced_actions = induced_actions[:,:,perm]
     expected_reward_s = expected_reward_s[perm]
     expected_reward_r = expected_reward_r[perm]
     mutual_information = mutual_information[perm]
     residual_variance = residual_variance[perm]
+    is_absorbing = is_absorbing[perm]
 
-    set_nash = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, mutual_information, residual_variance, n_nash, bias)
-    var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, mutual_information, residual_variance, n_nash, bias)
+    set_nash = (policy_s, policy_r, q_s, q_r, induced_actions, expected_reward_s, expected_reward_r, mutual_information, residual_variance, is_absorbing, n_nash, bias)
+    var_names = @names(policy_s, policy_r, q_s, q_r, induced_actions, expected_reward_s, expected_reward_r, mutual_information, residual_variance, is_absorbing, n_nash, bias)
     dict_nash = Dict(name => value for (name, value) in zip(var_names, set_nash))
     return dict_nash
 end

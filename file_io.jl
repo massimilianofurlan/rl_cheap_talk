@@ -27,7 +27,7 @@ function parse_commandline()
         "--bias", "-b"
             arg_type = Float32
             help = "sender's bias"
-            default = 0.1f0
+            default = 0.075f0
             range_tester = x -> x >= 0.0f0
         "--loss", "-l"
             arg_type = String
@@ -61,9 +61,6 @@ function parse_commandline()
         "--raw", "-r"
             help = "flag to exclusively run simulations and collect raw output"
             action = :store_true
-        "--save_all", "-S"
-            help = "flag to save all results (including reward paths)"
-            action = :store_true
         "--out_dir", "-o"
             arg_type = String
             help = "output directory name"
@@ -84,15 +81,10 @@ function parse_commandline()
     if parsed_args["n_actions"] == nothing
         parsed_args["n_actions"] = 2 * parsed_args["n_states"] - 1
     end
-    # save_all implies saving
-    if parsed_args["save_all"] == true
-        parsed_args["save"] = true
-    end
     # raw mode is quiet and does not save_all
     if parsed_args["raw"] == true
         parsed_args["save"] = true
         parsed_args["quiet"] = true
-        parsed_args["save_all"] = false
     end
     return parsed_args
 end
@@ -138,15 +130,15 @@ function gen_dirs()
     return output_dir, temp_dir
 end
 
-format_txt(val::AbstractFloat) = string(round.(Float64.(val[1]),digits=5)) 
-format_txt(val::Tuple) = string(round.(Float64.(val[1]),digits=5), " (", round.(Float64.(val[2]),digits=6),")") 
-format_txt(val::AbstractArray) =  string(round.(Float64.(val), digits = 5))
-format_entry(dict_val, key; std=false) = haskey(dict_val, key) ? (std ? format_txt(dict_val[key]) : format_txt(dict_val[key][1])) : " -- "
+format_txt(val::AbstractFloat; digits = 5) = string(round.(Float64.(val[1]), digits=digits))
+format_txt(val::Tuple; digits = 5) = string(round.(Float64.(val[1]), digits=digits), " (", round.(Float64.(val[2]), digits=6),")")
+format_txt(val::AbstractArray; digits = 5) =  string(round.(Float64.(val), digits = digits))
+format_entry(dict_val, key; std=false, digits = 5) = haskey(dict_val, key) ? (std ? format_txt(dict_val[key], digits=digits) : format_txt(dict_val[key][1], digits=digits)) : " -- "
 
-function add_row(rows, dict_val, var_name; keys_ = ["converged", "not_converged"], std = true, text = var_name)
+function add_row(rows, dict_val, var_name; keys_ = ["converged", "not_converged"], std = true, text = var_name, digits = 5)
     row::Any = [text]
     for key in keys_
-        row = hcat(row, format_entry(dict_val[key], var_name; std = std))
+        row = hcat(row, format_entry(dict_val[key], var_name; std = std, digits = digits))
     end
     push!(rows, row)
 end
@@ -158,6 +150,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     best_nash_table::Any = []
     push!(best_nash_table, ["n_messages_on_path" best_nash["n_messages_on_path"]])    
     push!(best_nash_table, ["best_mutual_info" round(best_nash["best_mutual_information"], digits=4)])    
+    push!(best_nash_table, ["best_residual_var" round(best_nash["best_residual_variance"], digits=4)])
     push!(best_nash_table, ["best_expe_rewards_s" round(best_nash["best_expected_reward_s"], digits=4)])
     push!(best_nash_table, ["best_expe_rewards_r" round(best_nash["best_expected_reward_r"], digits=4)])
     push!(best_nash_table, ["is_borderline" best_nash["is_borderline"]])
@@ -176,6 +169,10 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(statistics_table, statistics, "avg_n_on_path_messages")
     add_row(statistics_table, statistics, "avg_n_effective_messages")
     add_row(statistics_table, statistics, "freq_partitional")
+    push!(statistics_table, ["[Q METRICS]" "" ""])
+    add_row(statistics_table, statistics, "freq_is_absorbing")
+    add_row(statistics_table, statistics, "avg_margin_error_s", digits = 2)
+    add_row(statistics_table, statistics, "avg_margin_error_r", digits = 2)
     push!(statistics_table, ["[EPSILON NASH]" "" ""])
     add_row(statistics_table, statistics, "avg_absolute_error_s", text = "avg_epsilon_s")
     add_row(statistics_table, statistics, "avg_absolute_error_r", text = "avg_epsilon_r")
@@ -186,24 +183,27 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(statistics_table, statistics, "quant_max_mass_on_suboptim", text = "gamma_nash (.25, .50, 0.75)")
     add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-2)"; std = false)
     open("$temp_dir/experiment_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,30], hlines = [0,1,6])
-        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,30,30], hlines = [0,1,2,4,5,7,8,13,14,17,18,22])
+        pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,40], hlines = [0,1,7])
+        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,40,40], hlines = [0,1,2,4,5,7,8,13,14,17,18,21,22,26])
     end
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
 
     nash_idxs = (1:set_nash["n_nash"]...,0)
     nash_header = (["NASH"; nash_idxs...])
     nash_table::Any = []
-    push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_entry(statistics[0],"avg_mutual_information", std=true)]))
-    push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_entry(statistics[0],"avg_expected_reward_s", std=true)]))
-    push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_entry(statistics[0],"avg_expected_reward_r", std=true)]))
+    push!(nash_table, hcat(["mutual_information" format_txt.(set_nash["mutual_information"])... format_entry(statistics[0],"avg_mutual_information")]))
+    push!(nash_table, hcat(["residual_variance" format_txt.(set_nash["residual_variance"])... format_entry(statistics[0],"avg_residual_variance")]))
+    push!(nash_table, hcat(["expe_rewards_s" format_txt.(set_nash["expected_reward_s"])... format_entry(statistics[0],"avg_expected_reward_s")]))
+    push!(nash_table, hcat(["expe_rewards_r" format_txt.(set_nash["expected_reward_r"])... format_entry(statistics[0],"avg_expected_reward_r")]))
+    push!(nash_table, hcat(["is_absorbing" set_nash["is_absorbing"]... format_entry(statistics[0],"freq_is_absorbing")]))
     add_row(nash_table, statistics, "freq", std=false, keys_=nash_idxs)
     add_row(nash_table, statistics, "freq_nash", std=false, text = "freq_nash (max_γ < 1f-2)", keys_=nash_idxs)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=nash_idxs)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=nash_idxs)
     add_row(nash_table, statistics, "freq_partitional", std=false, keys_=nash_idxs)
+    add_row(nash_table, statistics, "freq_is_absorbing", std=false, keys_=nash_idxs)
     open("$temp_dir/nash_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,4,5,9])
+        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,6,7,12])
     end
     quiet || run(`cat $temp_dir/nash_outcomes.txt`)
 
@@ -213,6 +213,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     class_header = (["NOT ALL NASH (CLASSES)"; -class_idxs...])
     class_table::Any = []
     add_row(class_table, statistics, "avg_mutual_information", keys_=class_idxs)
+    add_row(class_table, statistics, "avg_residual_variance", keys_=class_idxs)
     add_row(class_table, statistics, "avg_expected_reward_s", keys_=class_idxs)
     add_row(class_table, statistics, "avg_expected_reward_r", keys_=class_idxs)
     add_row(class_table, statistics, "freq", std=false, keys_=class_idxs)
@@ -220,8 +221,9 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(class_table, statistics, "avg_max_mass_on_suboptim_s", std=false, text = " avg_gamma_s", keys_=class_idxs)
     add_row(class_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=class_idxs)
     add_row(class_table, statistics, "freq_partitional", std=false, keys_=class_idxs)
+    add_row(class_table, statistics, "freq_is_absorbing", std=false, keys_=class_idxs)
     open("$temp_dir/class_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, class_table), header = class_header, hlines = [0,1,4,5,9])
+        pretty_table(io, reduce(vcat, class_table), header = class_header, hlines = [0,1,5,6,11])
     end
     quiet || run(`cat $temp_dir/class_outcomes.txt`)
     end
@@ -233,18 +235,24 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
             write(io, "\n\nEx-ante Expected Reward Sender: \t$(set_nash["expected_reward_s"][nash_idx])")
             write(io, "\nEx-ante Expected Reward Receiver: \t$(set_nash["expected_reward_r"][nash_idx])")
             write(io, "\nMutual Information: \t\t\t$(set_nash["mutual_information"][nash_idx])")
+            write(io, "\nResidual Variance: \t\t\t$(set_nash["residual_variance"][nash_idx])")
+            write(io, "\nFixed Point: \t\t\t\t$(set_nash["is_absorbing"][nash_idx])")
             write(io, "\n\nPolicy Sender: ")
-            policy_s = set_nash["policy_s"][:, end:-1:1, nash_idx]'
+            policy_s = set_nash["policy_s"][:,:,nash_idx]
             replace_zero_policy_s = [x == 0 ? "" : x for x in policy_s]
             show(io, "text/plain", replace_zero_policy_s)
             write(io, "\n\nPolicy Receiver: ")
-            policy_r = set_nash["policy_r"][:, end:-1:1, nash_idx]'
+            policy_r = set_nash["policy_r"][:,:,nash_idx]
             replace_zero_policy_r = [x == 0 ? "" : x for x in policy_r]
             show(io, "text/plain", replace_zero_policy_r)
             write(io, "\n\nInduced Actions: ")
-            induced_actions = set_nash["induced_actions"][:, end:-1:1, nash_idx]'
+            induced_actions = set_nash["induced_actions"][:,:,nash_idx]
             replace_zero_induced_actions = [x == 0 ? "" : x for x in induced_actions]
             show(io, "text/plain", replace_zero_induced_actions)
+            write(io, "\n\nInduced q_s:: ")
+            show(io, "text/plain", set_nash["q_s"][:,:,nash_idx])
+            write(io, "\n\nInduced q_r: ")
+            show(io, "text/plain", set_nash["q_r"][:,:,nash_idx])
         end
     end
 end
@@ -252,7 +260,7 @@ end
 
 # others
 
-function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict, rewards::Array{Float32,3})
+function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict)
     save_ || return nothing
    
     game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type], "_") # noise is omitted
@@ -269,7 +277,4 @@ function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict
     
     # move temp to folder (this overwrites the content of the destination)
     cp(temp_dir, out_dir, force=true)
-
-    # shrink rewards and save directly on outputdir to avoid moving large files
-    #save_all == true && save("$out_dir/rewards.jld2", Dict("rewards" => Float16.(rewards[1:maximum(results["n_episodes"]),:,:])))
 end

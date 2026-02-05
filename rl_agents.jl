@@ -1,18 +1,16 @@
 
 # play and learn: training 
 
-function run_simulation(rewards::AbstractArray{Float32,2}; rng::MersenneTwister=MersenneTwister())
+function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::MersenneTwister=MersenneTwister())
     # main function, runs simulation and returns Q matrices of the agents 
-    Q_s, Q_r, policy_s, policy_r = init_agents(rng)                         # initialize Q-matrices and policies of the agents
+    policy_s, policy_r = get_policy(Q_s, temp0_s), get_policy(Q_r, temp0_r) # initialize policies
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
     n_r, n_s, ep = 0, 0, 1                                                  # n_s, s_r count episodes w/ similar policy
     while ep < n_max_episodes
         t = sample_(rng, p_t)                                               # draw state of the world from prior
         m = get_action(policy_s, Q_s, temp_s[ep], t, rng)                   # get action of sender (softmax)
-        #x = get_signal(m, rng)                                             # get noisy signal from channel
         a = get_action(policy_r, Q_r, temp_r[ep], m, rng)                   # get action of receiver (softmax)
         reward_s, reward_r = reward_matrix_s[a,t], reward_matrix_r[a,t]     # get utilities
-        #rewards[ep,:] .= reward_s, reward_r                                # log utilities
         Q_s = update_q(Q_s, t, m, reward_s, alpha_s)                        # update Q-matrix of sender
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
         n_s = is_approx_unchanged(policy_s, policy_s_, n_s)                 # if policy approx unchanged increment else reset
@@ -51,9 +49,7 @@ function init_agents(rng::MersenneTwister)
         Q_s = babbling_reward_s * ones(Float32, n_states, n_messages)
         Q_r = babbling_reward_r * ones(Float32, n_messages, n_actions)
     end
-    policy_s = get_policy(Q_s, temp0_s)
-    policy_r = get_policy(Q_r, temp0_r)
-    return Q_s, Q_r, policy_s, policy_r
+    return Q_s, Q_r
 end
 
 function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, temp::Float32, state::Int64, rng::MersenneTwister)
@@ -164,6 +160,15 @@ function gen_distribution()
 end
 
 # generic functions
+
+function norm_(A::Array{Float32,2})
+    # fast l2 norm(), related to discussion at https://discourse.julialang.org/t/faster-isapprox/101202/8
+    norm_A = 0.0f0
+    @fastmath for i in eachindex(A)
+        norm_A += abs2(A[i])
+    end
+    return sqrt(norm_A)
+end
 
 function is_approx(A::Array{Float32,2}, A_::Array{Float32,2}; tol::Float32 = rtol)
     # fast isapprox(), discussion at https://discourse.julialang.org/t/faster-isapprox/101202/8
