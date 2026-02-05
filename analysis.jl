@@ -289,7 +289,7 @@ function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol)
     return has_no_synonyms
 end
 
-function isabsorbing(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
+function isabsorbing(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2}; ptol = 0.005)
     # sufficient condition for absorption in the limit for temp_s,temp_r -> 0; if true, the policy supports are self-confirming given the current Q-values
     # for each agent checks that min{ Q(s,a),  min{ r(s,a') : a'∈supp(π(·|s)) } } ≥  max{ Q(s,b) : b∉supp(π(·|s)) } and that r(s,a') is constant over a'∈supp(π(·|s))
     supp_s = policy_s .> ptol
