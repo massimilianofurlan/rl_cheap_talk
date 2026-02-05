@@ -70,6 +70,9 @@ function compute_group_statistics(results, group)
     n_effective_messages = results["n_effective_messages"][group]
     is_partitional = results["is_partitional"][group]
     is_nash = results["is_nash"][group]
+    is_absorbing = results["is_absorbing"][group]
+    margin_error_s = results["margin_error_s"][:,group]
+    margin_error_r = results["margin_error_r"][:,group]
 
     # average episodes played, frequence in group
     freq = count(group) / n_simulations
@@ -90,6 +93,9 @@ function compute_group_statistics(results, group)
     avg_n_effective_messages = mean_std(n_effective_messages)
     # freq partitional policy 
     freq_partitional = mean_std(is_partitional)
+    # average margin estimation error
+    avg_margin_error_s = dropdims(mean(margin_error_s, dims=2), dims=2)
+    avg_margin_error_r = dropdims(mean(margin_error_r, dims=2), dims=2)
 
     # epsilon-nash 
     min_absolute_error = min.(absolute_error_s,absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
@@ -102,13 +108,16 @@ function compute_group_statistics(results, group)
     quant_max_mass_on_suboptim = quantile(max_mass_on_suboptim, [0.25,0.5,0.75])
     # frequence (γ < 1f-2)-nash 
     freq_nash = count(is_nash) / n_group
+    # frequence is fixed point
+    freq_is_absorbing = count(is_absorbing) / n_group
+
 
     statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional)
+                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
     var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional)
+                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
 end
@@ -129,7 +138,6 @@ function get_nash_ids(induced_actions::Array{Float32,3}, nash_induced_actions::A
     return nash_ids
 end
 
-
 function get_class_ids(induced_actions::Array{Float32,3}; tol::Float32 = rtol)
     # returns similarity class ids
     class_ids, curr_id = zeros(Int, n_simulations), 0
@@ -138,10 +146,23 @@ function get_class_ids(induced_actions::Array{Float32,3}; tol::Float32 = rtol)
         for j in i+1:n_simulations
             class_ids[j] == 0 || continue
             is_approx(induced_actions[:,:,i], induced_actions[:,:,j]; tol=tol) || continue
-            class_ids[j] = class_ids[i]     # Assign to the same class if similar
+            # assign to the same class if similar
+            class_ids[j] = class_ids[i]
         end
     end
     return class_ids
 end
+
+#=function get_nash_dists(induced_actions::Array{Float32,3}, nash_induced_actions::Array{Float32,3})
+    # compute distance in l2-norm form each partitonal equilibrium
+    n_nash = size(nash_induced_actions,3)
+    nash_dists = Array{Float32,2}(undef, n_nash, n_simulations)
+    @inbounds @fastmath for z in 1:n_simulations
+        for nash_id in 1:n_nash
+            nash_dists[nash_id, z] = norm_(induced_actions[:,:,z] - nash_induced_actions[:,:,nash_id])
+        end
+    end
+    return nash_dists
+end=#
 
 

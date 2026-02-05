@@ -10,6 +10,10 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
     # preallocate arrays
     policy_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
     policy_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations)
+    q_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
+    q_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations)
+    margin_error_s =  Array{Float32,2}(undef, n_states, n_simulations)
+    margin_error_r =  Array{Float32,2}(undef, n_messages, n_simulations)
     induced_actions = Array{Float32,3}(undef, n_states, n_actions, n_simulations)
     expected_reward_s = Array{Float32,1}(undef, n_simulations)
     expected_reward_r = Array{Float32,1}(undef, n_simulations)
@@ -31,14 +35,24 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
     is_partitional = Array{Bool,1}(undef, n_simulations)
     is_converged = Array{Bool,1}(undef, n_simulations)
     is_nash = Array{Bool,1}(undef, n_simulations)
+    is_absorbing = Array{Bool,1}(undef, n_simulations)
 
     Threads.@threads for z in 1:n_simulations
+        # order Q-matrices
+        order = get_order(Q_s[:,:,z])
+        Q_s[:,:,z] = Q_s[:,order,z]
+        Q_r[:,:,z] = Q_r[order,:,z]
         # get policies at convergence
         policy_s[:,:,z] = get_policy(Q_s[:,:,z], temp_s[n_episodes[z]])
-        #policy_r[:,:,z] = get_best_reply_r(policy_s[:,:,z])
         policy_r[:,:,z] = get_policy(Q_r[:,:,z], temp_r[n_episodes[z]])
         policy_s_ = policy_s[:,:,z]
         policy_r_ = policy_r[:,:,z]
+        # get true q-matrices
+        q_s[:,:,z] = get_q_s(policy_r_)
+        q_r[:,:,z] = get_q_r(policy_s_)
+        # get margin estimation error
+        margin_error_s[:,z] = get_Q_margin(Q_s[:,:,z]) - get_Q_margin(q_s[:,:,z])
+        margin_error_r[:,z] = get_Q_margin(Q_r[:,:,z]) - get_Q_margin(q_r[:,:,z])
         # compute induced actions at convergence
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)
         # compute (ex-ante) expected rewards at convergence
@@ -75,25 +89,27 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         is_partitional[z] = ispartitional(policy_s_)
         # check if agents have converged 
         is_converged[z] = n_episodes[z] < n_max_episodes
+        # check if Q_s,Q_r induce self-confirming policies
+        is_absorbing[z] = isabsorbing(Q_s[:,:,z], Q_r[:,:,z], policy_s_, policy_r_)
     end
 
     # convert results to dict
-    results = (policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
+    results = (Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
                 absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, babbling_reward_s, babbling_reward_r,
                 off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
-                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged)
+                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing)
                 
-    var_names = @names(policy_s, policy_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
+    var_names = @names(Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
                 absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, babbling_reward_s, babbling_reward_r,
                 off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
-                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged)
+                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing)
                
     dict_results = Dict(name => value for (name, value) in zip(var_names, results))
     return merge(dict_input,dict_results)
 end
 
 
-# compute theoretical Q-matrices and Q-loss
+# compute true Q-matrices and delta
 
 function get_q_s(policy_r::Array{Float32,2})
     # compute theoretical Q-matrix of the sender
@@ -110,6 +126,22 @@ function get_q_r(policy_s::Array{Float32,2}; opb = p_t)
     return @fastmath Matrix{Float32}((reward_matrix_r * p_tm)')
 end
 
+function get_Q_margin(Q::AbstractMatrix{Float32})
+    # margin[s] = max(Q[s,:]) - max{ x < max(Q[s,:]) } ; if all equal then return 0
+    margin = zeros(Float32, size(Q,1))
+    for s in 1:size(Q,1)
+        best = -Inf32
+        for q in @view Q[s, :]
+            q > best && (best = q)
+        end
+        runnerup = -Inf32
+        for q in @view Q[s, :]
+            (q < best && q > runnerup) && (runnerup = q)
+        end
+        margin[s] = isfinite(runnerup) ? (best - runnerup) : 0f0
+    end
+    return margin
+end
 
 # best response functions
 
@@ -163,23 +195,23 @@ function get_expected_rewards(induced_actions::Array{Float32,2})
     return reward_s, reward_r
 end
 
-function get_mutual_information(policy::Array{Float32,2})
+function get_mutual_information(policy_s::Array{Float32,2})
     # compute normalized mutual information between m and t 
     # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
-    @fastmath p_m = policy'p_t
-    return @fastmath sum(policy[t,m]*p_t[t] * log2(policy[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy[t,m] != 0) / (-p_t' * log2.(p_t)) 
+    @fastmath p_m = policy_s'p_t
+    return @fastmath sum(policy_s[t,m]*p_t[t] * log2(policy_s[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy_s[t,m] != 0) / (-p_t' * log2.(p_t)) 
 end
 
-function get_residual_variance(policy::Array{Float32,2})
+function get_residual_variance(policy_s::Array{Float32,2})
     # compute residual variance
     # expected value the state, E(t) = \sum_t p(t) t
     @fastmath e_t = p_t'T
     # variance of the state, V(t) = \sum_t p(t) (t - E(t))^2
     @fastmath v_t = sum(p_t[t] * (T[t]-e_t)^2 for t in 1:n_states)
     # conditional probability of being in state t given message m
-    p_tm = get_posterior(policy)
+    p_tm = get_posterior(policy_s)
     # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
-    @fastmath p_m = policy'p_t
+    @fastmath p_m = policy_s'p_t
     # expected value of the state conditional on m, E(t|m) = \sum_t p(t|m) t
     @fastmath e_tm = sum(p_tm[t,:]*T[t] for t in 1:n_states)
     # variance of the state conditional on m, V(t|m) = \sum_t p(t|m) (t - E(t|m))^2
@@ -200,24 +232,22 @@ function get_policy(Q::Array{Float32,2}, temp::Float32)
     return policy
 end
 
-function order_policies(policy_s, policy_r)
-    # reorder messages so that lower message indeces are associated to lower states 
-    m_= 1
-    for t in 1:n_states 
-        set_m = argmax_(policy_s[t,:])              # index of most frequently sent message in state t
+function get_order(Q_s::Array{Float32,2})
+    # returns a permutation of messages that associates higher messages with higher states as much as possible
+    order = collect(1:n_messages)
+    m_ = 1
+    for t in 1:n_states
+        set_m = argmax_(Q_s[t,:])                   # index of most frequently sent message in state t
         length(set_m) < n_messages || continue      # skip (inconsequential) reordering if all messages are synonym
-        for m in set_m  
-            m < m_ && continue                      # if m was not yet assigned a position, swap m with m_
-            temp = policy_s[:,m_]
-            policy_s[:,m_] = policy_s[:,m]
-            policy_s[:,m] = temp
-            temp = policy_r[m_,:]
-            policy_r[m_,:] = policy_r[m,:]
-            policy_r[m,:] = temp
+        for m in set_m
+            m < m_ && continue
+            temp = order[m_]
+            order[m_] = order[m]
+            order[m] = temp
             m_ += 1
         end
     end
-    return policy_s, policy_r
+    return order
 end
 
 
@@ -259,6 +289,35 @@ function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol)
     return has_no_synonyms
 end
 
+function isabsorbing(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2}; ptol = 0.005)
+    # sufficient condition for absorption in the limit for temp_s,temp_r -> 0; if true, the policy supports are self-confirming given the current Q-values
+    # for each agent checks that min{ Q(s,a),  min{ r(s,a') : a'∈supp(π(·|s)) } } ≥  max{ Q(s,b) : b∉supp(π(·|s)) } and that r(s,a') is constant over a'∈supp(π(·|s))
+    supp_s = policy_s .> ptol
+    supp_r = policy_r .> ptol
+    for t in 1:n_states
+        best_off_path_Q_s = any(.!supp_s[t, :]) ? maximum(Q_s[t, .!supp_s[t, :]]) : -Inf32          # get highest off-path sender Q-value in state t
+        for m in 1:n_messages
+            supp_s[t, m] || continue
+            worst_on_path = minimum(reward_matrix_s[supp_r[m, :], t])                               # get worst sender payoff on-path of sate t 
+            min(Q_s[t, m], worst_on_path) >= best_off_path_Q_s - 1f-7 || return false
+            if sum(supp_s[t, :]) > 1                                                                # if tie at state t rewards must be constant
+                best_on_path = maximum(reward_matrix_s[supp_r[m, :], t])
+                best_on_path - worst_on_path <= 1f-7 || return false
+            end
+            best_off_path_Q_r = any(.!supp_r[m, :]) ? maximum(Q_r[m, .!supp_r[m, :]]) : -Inf32      # get highest off-path receiver Q-value at message m
+            for a in 1:n_actions
+                supp_r[m, a] || continue
+                worst_r = minimum(reward_matrix_r[a, supp_s[:, m]])                                 # get worst receiver payoff on-path of message m
+                min(Q_r[m, a], worst_r) >= best_off_path_Q_r - 1f-7 || return false
+                if sum(supp_r[m, :]) > 1                                                            # if tie at message m rewards must be constant
+                    best_r = maximum(reward_matrix_r[a, supp_s[:, m]])
+                    best_r - worst_r <= 1f-6 || return false
+                end
+            end
+        end
+    end
+    return true
+end
 
 #=
 function get_off_path_message_action_pairs(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
@@ -268,24 +327,4 @@ function get_off_path_message_action_pairs(policy_s::Array{Float32,2}, policy_r:
     is_wlog = issubset(off_path_induced_actions, policy_r[.!off_path_messages,:] .> 1f-6)
     return off_path_messages, off_path_induced_actions, is_wlog
 end
-
-function isfixedpoint(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2}, induced_actions::Array{Float32,2})
-    # is fixed point Q-system
-    supp_s, supp_r =  policy_s .> ptol, policy_r .> ptol
-    flag_s, flag_r = trues(n_messages), trues(n_actions)
-    for t in 1:n_states
-        for m in 1:n_messages
-            supp_s[t,m] == true || continue
-            for a in 1:n_actions
-                supp_r[m,a] == true || continue
-                # sender
-                flag_s[m] *= abs(Q_s[t,m]-reward_matrix_s[a,t]) < 1f-6
-                # receiver
-                flag_r[a] *= abs(Q_r[m,a]-reward_matrix_r[a,t]) < 1f-6
-            end
-        end
-    end
-    return all(flag_s)*all(flag_r)
-end
-
 =#
