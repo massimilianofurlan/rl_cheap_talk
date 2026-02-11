@@ -87,10 +87,10 @@ function extract_data(config, results, extracted_data)
         Q_s[:,:,z] = Q_s[:,order,z]
         Q_r[:,:,z] = Q_r[order,:,z]
         # get policies at convergence
-		policy_s_ = get_policy(Q_s[:,:,z], max(temp0_s * exp(-lambda_s*(n_episodes[z]-1)), 1f-30))
-		policy_r_ = get_policy(Q_r[:,:,z], max(temp0_r * exp(-lambda_r*(n_episodes[z]-1)), 1f-30))
-        policy_s[:,:,z] = policy_s_
-        policy_r[:,:,z] = policy_r_
+        policy_s[:,:,z] = get_policy(Q_s[:,:,z], max(temp0_s * exp(-lambda_s*(n_episodes[z]-1)), 1f-30))
+        policy_r[:,:,z] = get_policy(Q_r[:,:,z], max(temp0_r * exp(-lambda_r*(n_episodes[z]-1)), 1f-30))
+        policy_s_ = policy_s[:,:,z]
+        policy_r_ = policy_r[:,:,z]
         # compute induced actions at convergence
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)    
         # compute (ex-ante) expected rewards at convergence
