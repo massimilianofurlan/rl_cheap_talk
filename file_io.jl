@@ -27,7 +27,7 @@ function parse_commandline()
         "--bias", "-b"
             arg_type = Float32
             help = "sender's bias"
-            default = 0.075f0
+            default = 0.1f0
             range_tester = x -> x >= 0.0f0
         "--loss", "-l"
             arg_type = String
@@ -109,10 +109,11 @@ function show_experiment_details()
         println(io, " q_init: \t " , q_init)        
         println(io, " alpha_s: \t " , alpha_s)
         println(io, " alpha_r: \t " , alpha_r)
-        println(io, " lambda_s: \t " , round.(lambda_s,digits=9))
-        println(io, " lambda_r: \t " , round.(lambda_r,digits=9))
-        println(io, " temp0_s: \t " , temp0_s)
-        println(io, " temp0_r: \t " , temp0_r)
+        println(io, " policy_type: \t " , policy_type)
+        println(io, " expl_decay_s: \t " , round.(expl_decay_s,digits=9))
+        println(io, " expl_decay_r: \t " , round.(expl_decay_r,digits=9))
+        println(io, " expl0_s: \t " , expl0_s)
+        println(io, " expl0_r: \t " , expl0_r)
         println(io)
     end
     quiet || run(`cat $temp_dir/experiment_details.txt`)
@@ -264,7 +265,7 @@ function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict
     save_ || return nothing
    
     game_key = join([n_states, n_actions, n_messages, bias, loss_type, dist_type], "_") # noise is omitted
-    hyperparameters_key = join([alpha_s, alpha_r, lambda_s, lambda_r, temp0_s, temp0_r, q_init], "_")
+    hyperparameters_key = join([alpha_s, alpha_r, expl_decay_s, expl_decay_r, expl0_s, expl0_r, q_init], "_")
     settings_key = join([n_simulations, n_max_episodes, convergence_threshold, rtol], "_") # irrelevanf for directory name
    
     save("$temp_dir/config.jld2", config)

@@ -8,11 +8,13 @@ q_init = "random"
 # learning rates
 alpha_s = 0.1
 alpha_r = 0.1
+# policy type (softmax, eps-greedy)
+policy_type = "softmax"
 # exploration decay
-lambda_s = 0.000005
-lambda_r = 0.000005
-temp0_s = 0.1
-temp0_r = 0.1
+expl_decay_s = 0.000005
+expl_decay_r = 0.000005
+expl0_s = 0.1
+expl0_r = 0.1
 
 # BASE-CASE CONFIGURATION
 [basecase]
@@ -24,11 +26,13 @@ q_init = "random"
 # learning rates
 alpha_s = 0.10
 alpha_r = 0.10
+# policy type (softmax, eps-greedy)
+policy_type = "softmax"
 # exploration decay
-lambda_s = 0.000005
-lambda_r = 0.000005
-temp0_s = 0.1
-temp0_r = 0.1
+expl_decay_s = 0.000005
+expl_decay_r = 0.000005
+expl0_s = 0.1
+expl0_r = 0.1
 
 
 # BASECASE W/ LESS EXPLORATION
@@ -41,11 +45,13 @@ q_init = "random"
 # learning rates
 alpha_s = 0.10
 alpha_r = 0.10
+# policy type (softmax, eps-greedy)
+policy_type = "softmax"
 # exploration decay
-lambda_s = 0.00001
-lambda_r = 0.00001
-temp0_s = 0.1
-temp0_r = 0.1
+expl_decay_s = 0.00001
+expl_decay_r = 0.00001
+expl0_s = 0.1
+expl0_r = 0.1
 
 
 # BASECASE W/ MORE EXPLORATION
@@ -58,11 +64,32 @@ q_init = "random"
 # learning rates
 alpha_s = 0.10
 alpha_r = 0.10
+# policy type (softmax, eps-greedy)
+policy_type = "softmax"
 # exploration decay
-lambda_s = 0.000002
-lambda_r = 0.000002
-temp0_s = 0.1
-temp0_r = 0.1
+expl_decay_s = 0.000002
+expl_decay_r = 0.000002
+expl0_s = 0.1
+expl0_r = 0.1
+
+
+# EPSILON GREEDY
+[eps-greedy]
+# number of episodes
+n_max_episodes = 10000000
+convergence_threshold = 10000
+# initialization (random, optimistic, pessimistic)
+q_init = "random"
+# learning rates
+alpha_s = 0.10
+alpha_r = 0.10
+# policy type (softmax, eps-greedy)
+policy_type = "eps-greedy"
+# exploration decay
+expl_decay_s = 0.000002
+expl_decay_r = 0.000002
+expl0_s = 0.50
+expl0_r = 0.50
 
 
 # GRID SEARCH CONFIGURATION
@@ -75,9 +102,10 @@ q_init = "random"
 # learning rates
 alpha_s = 0.05
 alpha_r = 0.05
+# policy type (softmax, eps-greedy)
+policy_type = "softmax"
 # exploration decay
-lambda_s = 0.000005
-lambda_r = 0.000005
-temp0_s = 0.1
-temp0_r = 0.1
-
+expl_decay_s = 0.000005
+expl_decay_r = 0.000005
+expl0_s = 0.1
+expl0_r = 0.1

@@ -43,8 +43,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         Q_s[:,:,z] = Q_s[:,order,z]
         Q_r[:,:,z] = Q_r[order,:,z]
         # get policies at convergence
-        policy_s[:,:,z] = get_policy(Q_s[:,:,z], temp_s[n_episodes[z]])
-        policy_r[:,:,z] = get_policy(Q_r[:,:,z], temp_r[n_episodes[z]])
+        policy_s[:,:,z] = get_policy(Q_s[:,:,z], expl_s[n_episodes[z]])
+        policy_r[:,:,z] = get_policy(Q_r[:,:,z], expl_r[n_episodes[z]])
         policy_s_ = policy_s[:,:,z]
         policy_r_ = policy_r[:,:,z]
         # get true q-matrices
@@ -222,16 +222,6 @@ end
 
 # policy
 
-function get_policy(Q::Array{Float32,2}, temp::Float32)
-    # derive soft-max policy from Q-matrix
-    policy = similar(Q)
-    @fastmath for state in 1:size(Q,1)
-        max_val = maximum_(view(Q,state,:))
-        policy[state,:] = exp.((Q[state,:].-max_val)/temp)/sum(exp.((Q[state,:].-max_val)/temp))
-    end
-    return policy
-end
-
 function get_order(Q_s::Array{Float32,2})
     # returns a permutation of messages that associates higher messages with higher states as much as possible
     order = collect(1:n_messages)
@@ -290,7 +280,7 @@ function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol)
 end
 
 function isabsorbing(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2}; ptol = 0.005)
-    # sufficient condition for absorption in the limit for temp_s,temp_r -> 0; if true, the policy supports are self-confirming given the current Q-values
+    # sufficient condition for absorption in the limit for expl_s,expl_r -> 0; if true, the policy supports are self-confirming given the current Q-values
     # for each agent checks that min{ Q(s,a),  min{ r(s,a') : a'∈supp(π(·|s)) } } ≥  max{ Q(s,b) : b∉supp(π(·|s)) } and that r(s,a') is constant over a'∈supp(π(·|s))
     supp_s = policy_s .> ptol
     supp_r = policy_r .> ptol

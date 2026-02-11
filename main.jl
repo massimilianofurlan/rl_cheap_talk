@@ -72,14 +72,18 @@ const q_init = config["q_init"]
 # learning rate: Q <- (1-alpha) * Q + alpha * R
 const alpha_s::Float32 = config["alpha_s"]
 const alpha_r::Float32 = config["alpha_r"]
+
+# policies
+const policy_type = config["policy_type"]
+const get_policy = policy_type == "eps-greedy" ? get_epsgreedy_policy : get_softmax_policy
 # exploration parameters (decay factor, initial exploration)
-const lambda_s::Float32 = config["lambda_s"]
-const lambda_r::Float32 = config["lambda_r"]
-const temp0_s::Float32 = config["temp0_s"]
-const temp0_r::Float32 = config["temp0_r"]
+const expl_decay_s::Float32 = config["expl_decay_s"]
+const expl_decay_r::Float32 = config["expl_decay_r"]
+const expl0_s::Float32 = config["expl0_s"]
+const expl0_r::Float32 = config["expl0_r"]
 # exploration decay
-const temp_s = [max(temp0_s * exp(-lambda_s*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
-const temp_r = [max(temp0_r * exp(-lambda_r*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
+const expl_s = [max(expl0_s * exp(-expl_decay_s*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
+const expl_r = [max(expl0_r * exp(-expl_decay_r*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
 
 # tolerance on convergence of policies
 const rtol = 0.001f0
