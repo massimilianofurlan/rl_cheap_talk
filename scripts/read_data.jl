@@ -83,8 +83,8 @@ function extract_data(config, results, extracted_data)
 	Threads.@threads for z in 1:n_converged
 		is_converged[z] == true || continue
         # get policies at convergence
-       	policy_s_ = get_policy(Q_s[:,:,z], max(temp0_s*lambda_s^(n_episodes[z]-1),1f-30))
-        policy_r_ = get_policy(Q_r[:,:,z], max(temp0_r*lambda_r^(n_episodes[z]-1),1f-30))
+		policy_s_ = get_policy(Q_s[:,:,z], max(temp0_s * exp(-lambda_s*(n_episodes[z]-1)), 1f-30))
+		policy_r_ = get_policy(Q_r[:,:,z], max(temp0_r * exp(-lambda_r*(n_episodes[z]-1)), 1f-30))
         policy_s[:,:,z], policy_r[:,:,z] = order_policies(policy_s_, policy_r_)
         # compute induced actions at convergence
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)    
