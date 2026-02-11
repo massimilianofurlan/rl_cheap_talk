@@ -98,8 +98,8 @@ function compute_group_statistics(results, group)
     avg_margin_error_r = dropdims(mean(margin_error_r, dims=2), dims=2)
 
     # epsilon-nash 
-    min_absolute_error = min.(absolute_error_s,absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
-    quant_min_absolute_error = quantile(min_absolute_error, 1.0 .- [0.9,0.95,1])  # value of ϵ that makes 90, 95 and 100% of simulation an ϵ-approximate equilibrium
+    max_absolute_error = max.(absolute_error_s, absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
+    quant_max_absolute_error = quantile(max_absolute_error, [0.9, 0.95, 1.0])      # value of ϵ that makes 90, 95 and 100% of simulation an ϵ-approximate equilibrium
    
     # average gamma
     avg_max_mass_on_suboptim_s = mean_std(max_mass_on_suboptim_s) 
@@ -114,10 +114,10 @@ function compute_group_statistics(results, group)
 
     statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
+                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
     var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
                   avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  min_absolute_error, quant_min_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
+                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, avg_margin_error_s, avg_margin_error_r)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
 end

@@ -64,8 +64,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         optimal_reward_s[z], _ = get_expected_rewards(optimal_policy_s, policy_r_)
         _, optimal_reward_r[z] = get_expected_rewards(policy_s_, optimal_policy_r)
         # compute absolute expected error by (possibly) not best responding to opponent
-        absolute_error_s[z] = expected_reward_s[z] - optimal_reward_s[z]
-        absolute_error_r[z] = expected_reward_r[z] - optimal_reward_r[z]
+        absolute_error_s[z] = optimal_reward_s[z] - expected_reward_s[z]
+        absolute_error_r[z] = optimal_reward_r[z] - expected_reward_r[z]
         # compute communication metrics
         mutual_information[z] = get_mutual_information(policy_s_)
         residual_variance[z] = get_residual_variance(policy_s_)
