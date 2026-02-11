@@ -8,13 +8,11 @@ function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::Merse
     n_r, n_s, ep = 0, 0, 1                                                  # n_s, s_r count episodes w/ similar policy
     while ep < n_max_episodes
         t = sample_(rng, p_t)                                               # draw state of the world from prior
-        m = get_action(policy_s, t, rng)                                    # sample action of sender
-        a = get_action(policy_r, m, rng)                                    # sample action of receiver
+        m = get_action(policy_s, Q_s, expl_s[ep], t, rng)                   # update policy and get action of sender
+        a = get_action(policy_r, Q_r, expl_r[ep], m, rng)                   # update policy and get action of receiver
         reward_s, reward_r = reward_matrix_s[a,t], reward_matrix_r[a,t]     # get utilities
         Q_s = update_q(Q_s, t, m, reward_s, alpha_s)                        # update Q-matrix of sender
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
-        policy_s = update_policy(policy_s, Q_s, expl_s[ep])                 # update policy of sender
-        policy_r = update_policy(policy_r, Q_r, expl_r[ep])                 # update policy of receiver
         n_s = is_approx_unchanged(policy_s, policy_s_, n_s)                 # if policy approx unchanged increment else reset
         n_r = is_approx_unchanged(policy_r, policy_r_, n_r)                 # if policy approx unchanged increment else reset
         min(n_s, n_r) == convergence_threshold && break                     # break if policies have converged                
@@ -60,14 +58,9 @@ function update_q(Q::Array{Float32,2}, state::Int64, action::Int64, reward::Floa
     return Q
 end
 
-function update_policy(policy::Array{Float32,2}, Q::Array{Float32,2}, expl::Float32)
-    # update policy 
-    @fastmath policy = get_policy(Q, expl, policy = policy)
-    return policy
-end
-
-function get_action(policy::Array{Float32,2}, state::Int64, rng::MersenneTwister)
-    # sample action from policy
+function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, expl::Float32, state::Int64, rng::MersenneTwister)
+    # update policy and sample action from it
+    policy = get_policy(Q, expl, policy = policy)
     return sample_(rng, view(policy,state,:))
 end
 
