@@ -5,8 +5,8 @@ function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::Merse
     # main function, runs simulation and returns Q matrices of the agents 
     policy_s, policy_r = get_policy(Q_s, expl0_s), get_policy(Q_r, expl0_r) # initialize policies
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
-    n_r, n_s, ep = 0, 0, 1                                                  # n_s, s_r count episodes w/ similar policy
-    while ep < n_max_episodes
+    n_r, n_s = 0, 0                                                         # n_s, s_r count episodes w/ similar policy
+    for ep in 1:n_max_episodes
         t = sample_(rng, p_t)                                               # draw state of the world from prior
         m = get_action(policy_s, Q_s, expl_s[ep], t, rng)                   # update policy and get action of sender
         a = get_action(policy_r, Q_r, expl_r[ep], m, rng)                   # update policy and get action of receiver
@@ -15,10 +15,9 @@ function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::Merse
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
         n_s = is_approx_unchanged(policy_s, policy_s_, n_s)                 # if policy approx unchanged increment else reset
         n_r = is_approx_unchanged(policy_r, policy_r_, n_r)                 # if policy approx unchanged increment else reset
-        min(n_s, n_r) == convergence_threshold && break                     # break if policies have converged                
-        ep += 1
+        min(n_s, n_r) == convergence_threshold && return Q_s, Q_r, ep       # break if policies have converged   
     end
-    return Q_s, Q_r, ep
+    return Q_s, Q_r, n_max_episodes
 end
 
 function is_approx_unchanged(policy::Array{Float32,2}, policy_::Array{Float32,2}, n::Int64)
@@ -84,7 +83,7 @@ function get_softmax_policy(Q::Array{Float32,2}, temp::Float32; policy::Array{Fl
     return policy
 end
 
-function get_epsgreedy_policy(Q::Array{Float32,2}, epsilon::Float32; policy::Array{Float32,2} = similar(Q))
+function get_epsgreedy_policy(Q::Array{Float32,2}, epsilon::Float32; policy::Array{Float32,2} = similar(Q), tol = 1f-7)
     # get action according to eps-greedy (off-)policy
     # define A* = argmax_a Q(a,s) for given s in S
     # a ∈ A* with p = 1-ϵ/|A*| + ϵ/|A|  (|A*| of them)
@@ -94,11 +93,11 @@ function get_epsgreedy_policy(Q::Array{Float32,2}, epsilon::Float32; policy::Arr
         max_val = maximum_(view(Q,state,:))
         n_max = 0
         @fastmath for action in 1:n_actions
-            Q[state,action] == max_val && (n_max += 1)
+            abs(Q[state,action] - max_val) <= tol && (n_max += 1)
         end
         @fastmath for action in 1:n_actions
             policy[state, action] = epsilon / n_actions
-            if Q[state,action] == max_val
+            if abs(Q[state,action] - max_val) <= tol
                 policy[state, action] += (1.0f0 - epsilon) / n_max
             end
         end

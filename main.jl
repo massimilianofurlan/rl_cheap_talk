@@ -75,7 +75,8 @@ const alpha_r::Float32 = config["alpha_r"]
 
 # policies
 const policy_type = config["policy_type"]
-const get_policy = policy_type == "eps-greedy" ? get_epsgreedy_policy : get_softmax_policy
+const get_policy = policy_type == "eps-greedy" ? get_epsgreedy_policy :
+                   policy_type == "softmax" ? get_softmax_policy : error("invalid policy")
 # exploration parameters (decay factor, initial exploration)
 const expl_decay_s::Float32 = config["expl_decay_s"]
 const expl_decay_r::Float32 = config["expl_decay_r"]
@@ -133,4 +134,3 @@ end
 
 Random.seed!(0)
 main()
-
