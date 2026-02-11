@@ -31,7 +31,7 @@ const set_lambda::Array{Float32,1} = [min_lambda/2^(i-1) for i in 1:n_lambda]
 
 println("\nInput dir: ", scrpt_config["in_dir"])
 
-n_alpha, n_lambda, n_biases, n_simulations = length(set_alpha), length(set_lambda), length(set_biases), 1000
+n_biases, n_simulations = length(set_biases), 1000
 
 mutual_information = fill(NaN, n_alpha, n_lambda, n_simulations, n_biases);
 expected_reward_s = fill(NaN, n_alpha, n_lambda, n_simulations, n_biases);
@@ -49,8 +49,8 @@ for dir in readdir(input_dir, join = true)
 	println("\nCurrent dir: ", basename(dir))
 	config, extracted_data = read_data(dir)
 	config != nothing || continue # 
-	alpha::Float32, lambda::Float32 = config["alpha_s"], config["lambda_s"]
-	alpha_idx, lambda_idx = findfirst(set_alpha .== alpha), findfirst(set_lambda .== lambda)
+	alpha::Float32, expl_decay::Float32 = config["alpha_s"], config["expl_decay_s"]
+	alpha_idx, lambda_idx = findfirst(set_alpha .== alpha), findfirst(set_lambda .== expl_decay)
 
 	expected_reward_s[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["expected_reward_s"]...,dims=2);
 	expected_reward_r[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["expected_reward_r"]...,dims=2);

@@ -122,7 +122,7 @@ end
 for alpha in set_alpha
     for lambda in set_lambda
         # cycle over grid of alpha and lambda
-        new_values = Dict("alpha_s" => alpha, "alpha_r" => alpha, "lambda_s" => lambda, "lambda_r" => lambda)
+        new_values = Dict("alpha_s" => alpha, "alpha_r" => alpha, "expl_decay_s" => lambda, "expl_decay_r" => lambda)
         modify_config_section(new_values)
         for bias in set_biases
             # cycle over bias
@@ -136,4 +136,3 @@ for alpha in set_alpha
 end
 
 rm("$out_dir/temp",recursive=true,force=true)
-

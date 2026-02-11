@@ -87,8 +87,8 @@ function extract_data(config, results, extracted_data)
         Q_s[:,:,z] = Q_s[:,order,z]
         Q_r[:,:,z] = Q_r[order,:,z]
         # get policies at convergence
-        policy_s[:,:,z] = get_policy(Q_s[:,:,z], max(temp0_s * exp(-lambda_s*(n_episodes[z]-1)), 1f-30))
-        policy_r[:,:,z] = get_policy(Q_r[:,:,z], max(temp0_r * exp(-lambda_r*(n_episodes[z]-1)), 1f-30))
+        policy_s[:,:,z] = get_policy(Q_s[:,:,z], max(expl0_s * exp(-expl_decay_s*(n_episodes[z]-1)), 1f-30))
+        policy_r[:,:,z] = get_policy(Q_r[:,:,z], max(expl0_r * exp(-expl_decay_r*(n_episodes[z]-1)), 1f-30))
         policy_s_ = policy_s[:,:,z]
         policy_r_ = policy_r[:,:,z]
         # compute induced actions at convergence
@@ -195,11 +195,13 @@ function read_data(dir)
 	global A = collect(0:1f0/(n_actions-1):1)
 	global loss_type = config_["loss"]
 	global dist_type = config_["dist"]
+	global policy_type = config_["policy_type"]
+	global get_policy = policy_type == "eps-greedy" ? get_epsgreedy_policy : get_softmax_policy
 	global p_t = gen_distribution()
-	global temp0_s = Float32(config_["temp0_s"])
-	global temp0_r = Float32(config_["temp0_r"])
-	global lambda_s = Float32(config_["lambda_s"])
-	global lambda_r = Float32(config_["lambda_r"])
+	global expl0_s = Float32(config_["expl0_s"])
+	global expl0_r = Float32(config_["expl0_r"])
+	global expl_decay_s = Float32(config_["expl_decay_s"])
+	global expl_decay_r = Float32(config_["expl_decay_r"])
 
 	extracted_data = DefaultDict(() -> Array{Any,1}(undef, length(set_biases)))
 	counter = 0
