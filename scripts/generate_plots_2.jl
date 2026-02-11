@@ -14,17 +14,20 @@ include(joinpath(pwd(),"scripts/plots.jl"))
 include(joinpath(pwd(),"scripts/read_data.jl"))
 
 # parse terminal config
-const scrpt_config = merge(parse_commandline("out_grid_search", 0.01f0),TOML.parsefile("scripts/2_config.toml"))
+const scrpt_config = parse_commandline("out_grid_search", 0.01f0)
 # define set of biases 
 const set_biases = collect(0.00f0:scrpt_config["step_bias"]:0.5f0)
 # define input dir 
 const input_dir = joinpath(pwd(), scrpt_config["in_dir"])
 
-# set of alphas to loop over
-const set_alpha::Array{Float32,1} = [scrpt_config["min_alpha"]*2^(i-1) for i in 1:scrpt_config["n_alpha"]]
-const set_lambda::Array{Float32,1} = [scrpt_config["min_lambda"]/2^(i-1) for i in 1:scrpt_config["n_lambda"]]
-#const set_alpha::Array{Float32,1} = [scrpt_config["min_alpha"] + 0.05*(i-1) for i in 1:scrpt_config["n_alpha"]]
-#const set_lambda::Array{Float32,1} = [scrpt_config["min_lambda"]/i for i in 1:scrpt_config["n_lambda"]]
+# grid config
+const min_alpha = 0.025f0
+const n_alpha = 5
+const min_lambda = 0.00002f0
+const n_lambda = 5
+# set of alphas/lambdas to loop over
+const set_alpha::Array{Float32,1} = [min_alpha*2^(i-1) for i in 1:n_alpha]
+const set_lambda::Array{Float32,1} = [min_lambda/2^(i-1) for i in 1:n_lambda]
 
 println("\nInput dir: ", scrpt_config["in_dir"])
 
