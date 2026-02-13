@@ -154,7 +154,7 @@ function get_monotone_partitional_equilibria()
         expected_reward_s[idx], expected_reward_r[idx] = get_expected_rewards(policy_s_, policy_r_)
         residual_variance[idx] = get_residual_variance(policy_s_)
         mutual_information[idx] = get_mutual_information(policy_s_)
-        is_absorbing[idx] = isabsorbing(q_s[:,:,idx], q_r[:,:,idx], policy_s_, policy_r_)
+        is_absorbing[idx] = is_greedy_absorbing(q_s[:,:,idx], q_r[:,:,idx])
         is_nash[idx] = true
     end
     policy_s = policy_s[:,:,is_nash]

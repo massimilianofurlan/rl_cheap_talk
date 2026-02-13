@@ -83,7 +83,7 @@ function get_softmax_policy(Q::Array{Float32,2}, temp::Float32; policy::Array{Fl
     return policy
 end
 
-function get_epsgreedy_policy(Q::Array{Float32,2}, epsilon::Float32; policy::Array{Float32,2} = similar(Q), tol = 1f-7)
+function get_epsgreedy_policy(Q::Array{Float32,2}, epsilon::Float32; policy::Array{Float32,2} = similar(Q), tol = 1f-6)
     # get action according to eps-greedy (off-)policy
     # define A* = argmax_a Q(a,s) for given s in S
     # a ∈ A* with p = 1-ϵ/|A*| + ϵ/|A|  (|A*| of them)

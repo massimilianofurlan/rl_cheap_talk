@@ -2,7 +2,7 @@
 [default]
 # number of episodes
 n_max_episodes = 10000000
-convergence_threshold = 25000
+convergence_threshold = 50000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
 # learning rates
@@ -20,7 +20,7 @@ expl0_r = 0.1
 [basecase]
 # number of episodes
 n_max_episodes = 10000000
-convergence_threshold = 25000
+convergence_threshold = 50000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
 # learning rates
@@ -39,7 +39,7 @@ expl0_r = 0.1
 [less_exploration]
 # number of episodes
 n_max_episodes = 10000000
-convergence_threshold = 25000
+convergence_threshold = 50000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
 # learning rates
@@ -58,7 +58,7 @@ expl0_r = 0.1
 [more_exploration]
 # number of episodes
 n_max_episodes = 10000000
-convergence_threshold = 25000
+convergence_threshold = 50000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
 # learning rates
@@ -96,7 +96,7 @@ expl0_r = 0.50
 [gridsearch]
 # number of episodes
 n_max_episodes = 10000000
-convergence_threshold = 25000
+convergence_threshold = 50000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
 # learning rates

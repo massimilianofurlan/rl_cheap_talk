@@ -27,7 +27,7 @@ function parse_commandline()
         "--bias", "-b"
             arg_type = Float32
             help = "sender's bias"
-            default = 0.1f0
+            default = 0.075f0
             range_tester = x -> x >= 0.0f0
         "--loss", "-l"
             arg_type = String
@@ -172,6 +172,8 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(statistics_table, statistics, "freq_partitional")
     push!(statistics_table, ["[Q METRICS]" "" ""])
     add_row(statistics_table, statistics, "freq_is_absorbing")
+    add_row(statistics_table, statistics, "freq_is_greedy_s")
+    add_row(statistics_table, statistics, "freq_is_greedy_r")
     add_row(statistics_table, statistics, "avg_margin_error_s", digits = 2)
     add_row(statistics_table, statistics, "avg_margin_error_r", digits = 2)
     push!(statistics_table, ["[EPSILON NASH]" "" ""])
@@ -185,7 +187,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(statistics_table, statistics, "freq_nash", text = "freq_nash (max_γ < 1f-2)"; std = false)
     open("$temp_dir/experiment_outcomes.txt","w") do io
         pretty_table(io, reduce(vcat, best_nash_table), header = best_nash_header, columns_width = [30,40], hlines = [0,1,7])
-        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,40,40], hlines = [0,1,2,4,5,7,8,13,14,17,18,21,22,26])
+        pretty_table(io, reduce(vcat, statistics_table), header = statistics_header, columns_width = [30,40,40], hlines = [0,1,2,4,5,7,8,13,14,19,20,23,24,28])
     end
     quiet || run(`cat $temp_dir/experiment_outcomes.txt`)
 
@@ -203,8 +205,10 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(nash_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=nash_idxs)
     add_row(nash_table, statistics, "freq_partitional", std=false, keys_=nash_idxs)
     add_row(nash_table, statistics, "freq_is_absorbing", std=false, keys_=nash_idxs)
+    add_row(nash_table, statistics, "freq_is_greedy_s", std=false, keys_=nash_idxs)
+    add_row(nash_table, statistics, "freq_is_greedy_r", std=false, keys_=nash_idxs)
     open("$temp_dir/nash_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,6,7,12])
+        pretty_table(io, reduce(vcat, nash_table), header = nash_header, hlines = [0,1,6,7,14])
     end
     quiet || run(`cat $temp_dir/nash_outcomes.txt`)
 
@@ -223,8 +227,10 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     add_row(class_table, statistics, "avg_max_mass_on_suboptim_r", std=false, text = " avg_gamma_r", keys_=class_idxs)
     add_row(class_table, statistics, "freq_partitional", std=false, keys_=class_idxs)
     add_row(class_table, statistics, "freq_is_absorbing", std=false, keys_=class_idxs)
+    add_row(class_table, statistics, "freq_is_greedy_s", std=false, keys_=class_idxs)
+    add_row(class_table, statistics, "freq_is_greedy_r", std=false, keys_=class_idxs)
     open("$temp_dir/class_outcomes.txt","w") do io
-        pretty_table(io, reduce(vcat, class_table), header = class_header, hlines = [0,1,5,6,11])
+        pretty_table(io, reduce(vcat, class_table), header = class_header, hlines = [0,1,5,6,13])
     end
     quiet || run(`cat $temp_dir/class_outcomes.txt`)
     end

@@ -36,6 +36,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
     is_converged = Array{Bool,1}(undef, n_simulations)
     is_nash = Array{Bool,1}(undef, n_simulations)
     is_absorbing = Array{Bool,1}(undef, n_simulations)
+    is_greedy_s = Array{Bool,1}(undef, n_simulations)
+    is_greedy_r = Array{Bool,1}(undef, n_simulations)
 
     Threads.@threads for z in 1:n_simulations
         # order Q-matrices
@@ -89,20 +91,23 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         is_partitional[z] = ispartitional(policy_s_)
         # check if agents have converged 
         is_converged[z] = n_episodes[z] < n_max_episodes
+        # check if converged policies are greedy wrt converged Q-values
+        is_greedy_s[z] = is_greedy(Q_s[:,:,z], policy_s_)
+        is_greedy_r[z] = is_greedy(Q_r[:,:,z], policy_r_)
         # check if Q_s,Q_r induce self-confirming policies
-        is_absorbing[z] = isabsorbing(Q_s[:,:,z], Q_r[:,:,z], policy_s_, policy_r_)
+        is_absorbing[z] = is_greedy_absorbing(Q_s[:,:,z], Q_r[:,:,z])
     end
 
     # convert results to dict
-    results = (Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
-                absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, babbling_reward_s, babbling_reward_r,
-                off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
-                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing)
+    results = (Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, 
+                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, 
+                babbling_reward_s, babbling_reward_r, off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
+                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing, is_greedy_s, is_greedy_r)
                 
-    var_names = @names(Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, optimal_reward_s, optimal_reward_r,
-                absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, babbling_reward_s, babbling_reward_r,
-                off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
-                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing)
+    var_names = @names(Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, 
+                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, 
+                babbling_reward_s, babbling_reward_r, off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
+                max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing, is_greedy_s, is_greedy_r)
                
     dict_results = Dict(name => value for (name, value) in zip(var_names, results))
     return merge(dict_input,dict_results)
@@ -279,30 +284,77 @@ function get_effective_messages(policy_s::Array{Float32,2}; tol::Float32 = ptol)
     return has_no_synonyms
 end
 
-function isabsorbing(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2}; ptol = 0.005)
-    # sufficient condition for absorption in the limit for expl_s,expl_r -> 0; if true, the policy supports are self-confirming given the current Q-values
-    # for each agent checks that min{ Q(s,a),  min{ r(s,a') : a'∈supp(π(·|s)) } } ≥  max{ Q(s,b) : b∉supp(π(·|s)) } and that r(s,a') is constant over a'∈supp(π(·|s))
-    supp_s = policy_s .> ptol
-    supp_r = policy_r .> ptol
-    for t in 1:n_states
-        best_off_path_Q_s = any(.!supp_s[t, :]) ? maximum(Q_s[t, .!supp_s[t, :]]) : -Inf32          # get highest off-path sender Q-value in state t
-        for m in 1:n_messages
-            supp_s[t, m] || continue
-            worst_on_path = minimum(reward_matrix_s[supp_r[m, :], t])                               # get worst sender payoff on-path of sate t 
-            min(Q_s[t, m], worst_on_path) >= best_off_path_Q_s - 1f-7 || return false
-            if sum(supp_s[t, :]) > 1                                                                # if tie at state t rewards must be constant
-                best_on_path = maximum(reward_matrix_s[supp_r[m, :], t])
-                best_on_path - worst_on_path <= 1f-7 || return false
+function is_greedy(Q::Array{Float32,2}, policy::Array{Float32,2})
+    # check policy is greedy with respect to Q
+    n_states, n_actions = size(Q)
+    for state in 1:n_states
+        max_val = maximum_(view(Q, state, :))
+        for action in 1:n_actions
+            if policy[state, action] > ptol
+                abs(Q[state, action] - max_val) <= 1f-6 || return false
             end
-            best_off_path_Q_r = any(.!supp_r[m, :]) ? maximum(Q_r[m, .!supp_r[m, :]]) : -Inf32      # get highest off-path receiver Q-value at message m
+        end
+    end
+    return true
+end
+
+function is_greedy_absorbing(Q_s::Array{Float32,2}, Q_r::Array{Float32,2})
+    # necessary and sufficient for absorption: greedy argmax-sets are self-confirming given (Q_s,Q_r)
+    # assumes π(·|s) to be greedy with uniform tie-breaking from Q(s,·)
+    # for each agent checks that min{ min{supp r(s,a)} : a∈supp(π(·|s)) } >= max{ Q(s,b) : b∉supp(π(·|s)) }
+    # and if |supp(π(·|s))|>1 then r(s,a) is constant over a∈supp(π(·|s)) and Q(s,a) equals that constant
+    supp_policy_s = get_epsgreedy_policy(Q_s, 1f-7) .> ptol
+    supp_policy_r = get_epsgreedy_policy(Q_r, 1f-7) .> ptol
+    # sender
+    for t in 1:n_states
+        off_path = .!supp_policy_s[t, :]
+        best_off_path_Q = any(off_path) ? maximum_(Q_s[t, off_path]) : -Inf32
+        if count(supp_policy_s[t, :]) == 1
+            for m in 1:n_messages
+                supp_policy_s[t, m] || continue
+                reward_supp = reward_matrix_s[supp_policy_r[m, :], t]
+                worst_on_path = -maximum_(-reward_supp)
+                worst_on_path >= best_off_path_Q - 1f-6 || return false
+            end
+        else
+            best_on_path, worst_on_path = -Inf32, Inf32
+            for m in 1:n_messages
+                supp_policy_s[t, m] || continue
+                reward_supp = reward_matrix_s[supp_policy_r[m, :], t]
+                best_on_path = max(best_on_path, maximum_(reward_supp))
+                worst_on_path = min(worst_on_path, -maximum_(-reward_supp))
+            end
+            best_on_path - worst_on_path <= 1f-6 || return false
+            for m in 1:n_messages
+                supp_policy_s[t, m] || continue
+                abs(Q_s[t, m] - best_on_path) <= 1f-6 || return false
+            end
+        end
+    end
+    # receiver
+    for m in 1:n_messages
+        any(supp_policy_s[:, m]) || continue
+        off_path = .!supp_policy_r[m, :]
+        best_off_path_Q = any(off_path) ? maximum_(Q_r[m, off_path]) : -Inf32
+        if count(supp_policy_r[m, :]) == 1
             for a in 1:n_actions
-                supp_r[m, a] || continue
-                worst_r = minimum(reward_matrix_r[a, supp_s[:, m]])                                 # get worst receiver payoff on-path of message m
-                min(Q_r[m, a], worst_r) >= best_off_path_Q_r - 1f-7 || return false
-                if sum(supp_r[m, :]) > 1                                                            # if tie at message m rewards must be constant
-                    best_r = maximum(reward_matrix_r[a, supp_s[:, m]])
-                    best_r - worst_r <= 1f-6 || return false
-                end
+                supp_policy_r[m, a] || continue
+                reward_supp = reward_matrix_r[a, supp_policy_s[:, m]]
+                worst_on_path = -maximum_(-reward_supp)
+                worst_on_path >= best_off_path_Q - 1f-6 || return false
+            end
+        else
+            best_on_path, worst_on_path = -Inf32, Inf32
+            for a in 1:n_actions
+                supp_policy_r[m, a] || continue
+                reward_supp = reward_matrix_r[a, supp_policy_s[:, m]]
+                best_on_path = max(best_on_path, maximum_(reward_supp))
+                worst_on_path = min(worst_on_path, -maximum_(-reward_supp))
+            end
+            best_on_path - worst_on_path <= 1f-6 || return false
+            for a in 1:n_actions
+                supp_policy_r[m, a] || continue
+                abs(Q_r[m, a] - best_on_path) <= 1f-6 || return false
             end
         end
     end
