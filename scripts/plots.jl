@@ -145,13 +145,13 @@ function plot_interpolated_val!(pl, data; legend = "", color = "red", style = "s
 	return pl
 end
 
-function plot_eq_bound!(pl,mutual_information_best)
+function plot_eq_bound!(pl,posterior_mean_variance_best)
 	# plot shaded areas to indicate where babbling is the unique equilibrium and where full communication is an equilibrium
-	set_biases_ = range(0.0,0.5,length(mutual_information_best))
-	# last index at which mutual information is 1.0
-	mi1_idx = findlast(mutual_information_best .== maximum(mutual_information_best))
-	# first index at which mutual information is 0.0
-	mi0_idx = findfirst(mutual_information_best .== minimum(mutual_information_best))
+	set_biases_ = range(0.0,0.5,length(posterior_mean_variance_best))
+	# last index at which informativeness is maximal
+	mi1_idx = findlast(posterior_mean_variance_best .== maximum(posterior_mean_variance_best))
+	# first index at which informativeness is minimal
+	mi0_idx = findfirst(posterior_mean_variance_best .== minimum(posterior_mean_variance_best))
 	@pgf pl_best_lx_bound = VLine({"draw=none", "name path=blx"}, 0.0)
 	@pgf pl_best_rx_bound = VLine({"draw=none", "name path=brx"}, set_biases_[mi1_idx])
 	@pgf pl_best_fill = Plot({color = "gray", fill = "gray", opacity = 0.08}, raw"fill between [of=blx and brx]");

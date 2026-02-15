@@ -19,8 +19,7 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
     expected_reward_r = Array{Float32,1}(undef, n_simulations)
     absolute_error_s = Array{Float32,1}(undef, n_simulations)
     absolute_error_r = Array{Float32,1}(undef, n_simulations)
-    mutual_information = Array{Float32,1}(undef, n_simulations)
-    residual_variance = Array{Float32,1}(undef, n_simulations)
+    posterior_mean_variance = Array{Float32,1}(undef, n_simulations)
     optimal_reward_s = Array{Float32,1}(undef, n_simulations)
     optimal_reward_r = Array{Float32,1}(undef, n_simulations)
     posterior = Array{Float32,3}(undef, n_states, n_messages, n_simulations)
@@ -68,9 +67,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # compute absolute expected error by (possibly) not best responding to opponent
         absolute_error_s[z] = optimal_reward_s[z] - expected_reward_s[z]
         absolute_error_r[z] = optimal_reward_r[z] - expected_reward_r[z]
-        # compute communication metrics
-        mutual_information[z] = get_mutual_information(policy_s_)
-        residual_variance[z] = get_residual_variance(policy_s_)
+        # compute informativeness metric
+        posterior_mean_variance[z] = get_posterior_mean_variance(policy_s_)
         # compute theoretical posterior belief 
         posterior[:,:,z] = get_posterior(policy_s_)
         # get off path messages
@@ -100,12 +98,12 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
 
     # convert results to dict
     results = (Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, 
-                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, 
+                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, posterior_mean_variance, posterior, 
                 babbling_reward_s, babbling_reward_r, off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
                 max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing, is_greedy_s, is_greedy_r)
                 
     var_names = @names(Q_s, Q_r, policy_s, policy_r, q_s, q_r, margin_error_s, margin_error_r, induced_actions, expected_reward_s, expected_reward_r, 
-                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, mutual_information, residual_variance, posterior, 
+                optimal_reward_s, optimal_reward_r, absolute_error_s, absolute_error_r, posterior_mean_variance, posterior, 
                 babbling_reward_s, babbling_reward_r, off_path_messages, n_off_path_messages, n_effective_messages, mass_on_suboptim_s, mass_on_suboptim_r, 
                 max_mass_on_suboptim_s, max_mass_on_suboptim_r, max_mass_on_suboptim, is_nash, is_partitional, is_converged, is_absorbing, is_greedy_s, is_greedy_r)
                
@@ -183,7 +181,7 @@ function get_induced_actions(policy_s::Array{Float32,2}, policy_r::Array{Float32
 end
 
 
-# rewards and mutual information
+# rewards and informativeness
 
 function get_expected_rewards(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
     # get on the path rewards given policy_s and policy_r
@@ -200,29 +198,14 @@ function get_expected_rewards(induced_actions::Array{Float32,2})
     return reward_s, reward_r
 end
 
-function get_mutual_information(policy_s::Array{Float32,2})
-    # compute normalized mutual information between m and t 
-    # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
-    @fastmath p_m = policy_s'p_t
-    return @fastmath sum(policy_s[t,m]*p_t[t] * log2(policy_s[t,m]/p_m[m]) for t in 1:n_states, m in 1:n_messages if policy_s[t,m] != 0) / (-p_t' * log2.(p_t)) 
-end
-
-function get_residual_variance(policy_s::Array{Float32,2})
-    # compute residual variance
-    # expected value the state, E(t) = \sum_t p(t) t
+function get_posterior_mean_variance(policy_s::Array{Float32,2})
+    # compute normalized variance of the posterior mean V(E[T|M]) = V(T) - E[V(T|M)]
     @fastmath e_t = p_t'T
-    # variance of the state, V(t) = \sum_t p(t) (t - E(t))^2
     @fastmath v_t = sum(p_t[t] * (T[t]-e_t)^2 for t in 1:n_states)
-    # conditional probability of being in state t given message m
-    p_tm = get_posterior(policy_s)
-    # marginal probability of receiving message m, p(m) = \sum_t p(m|t)p(t)
+    @fastmath p_tm = get_posterior(policy_s)
     @fastmath p_m = policy_s'p_t
-    # expected value of the state conditional on m, E(t|m) = \sum_t p(t|m) t
     @fastmath e_tm = sum(p_tm[t,:]*T[t] for t in 1:n_states)
-    # variance of the state conditional on m, V(t|m) = \sum_t p(t|m) (t - E(t|m))^2
-    @fastmath v_tm = sum(p_tm[t,:] .* (T[t] .- e_tm).^2 for t in 1:n_states)
-    # normalized expected ex-ante variance of the state conditional on m
-    return @fastmath sum(p_m[m] * v_tm[m] for m in 1:n_messages if p_m[m] != 0) / v_t
+    return @fastmath (v_t - sum(p_t[t] * policy_s[t,m] * (T[t] - e_tm[m])^2 for m in 1:n_messages, t in 1:n_states if p_m[m] != 0)) / v_t
 end
 
 # policy

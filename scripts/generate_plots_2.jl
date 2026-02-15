@@ -33,7 +33,7 @@ println("\nInput dir: ", scrpt_config["in_dir"])
 
 n_biases, n_simulations = length(set_biases), 1000
 
-mutual_information = fill(NaN, n_alpha, n_lambda, n_simulations, n_biases);
+posterior_mean_variance = fill(NaN, n_alpha, n_lambda, n_simulations, n_biases);
 expected_reward_s = fill(NaN, n_alpha, n_lambda, n_simulations, n_biases);
 expected_reward_r = fill(NaN, n_alpha, n_lambda, n_simulations, n_biases);
 max_max_mass_on_suboptim = fill(NaN, n_alpha, n_lambda, n_simulations, n_biases);
@@ -54,7 +54,7 @@ for dir in readdir(input_dir, join = true)
 
 	expected_reward_s[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["expected_reward_s"]...,dims=2);
 	expected_reward_r[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["expected_reward_r"]...,dims=2);
-	mutual_information[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["mutual_information"]...,dims=2);
+	posterior_mean_variance[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["posterior_mean_variance"]...,dims=2);
 	max_max_mass_on_suboptim[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["max_max_mass_on_suboptim"]...,dims=2);
 	max_absolute_error[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["max_absolute_error"]...,dims=2);
 	is_nash[alpha_idx,lambda_idx,:,:] .= cat(extracted_data["max_max_mass_on_suboptim"]...,dims=2) .< 1f-2 
@@ -66,7 +66,7 @@ end
 mean_(x; dims=:) = dropdims(mean(x,dims=dims),dims=dims)
 avg_expected_reward_s = mean_(expected_reward_s,dims=3)
 avg_expected_reward_r = mean_(expected_reward_r,dims=3)
-avg_mutual_information = mean_(mutual_information,dims=3)
+avg_posterior_mean_variance = mean_(posterior_mean_variance,dims=3)
 avg_max_max_mass_on_suboptim = mean_(max_max_mass_on_suboptim,dims=3)
 avg_max_absolute_error = mean_(max_absolute_error,dims=3)
 avg_is_nash = mean_(is_nash,dims=3)
@@ -83,7 +83,7 @@ push!(PGFPlotsX.CUSTOM_PREAMBLE, raw"\usepgfplotslibrary{fillbetween}")
 format_scientific(x) = string(round(x / 10.0^floor(Int, log10(abs(x))), digits=2), " \\times 10^{", floor(Int, log10(abs(x))), "}")
 
 pls_expected_reward_r = Axis[]
-pls_mutual_information = Axis[]
+pls_posterior_mean_variance = Axis[]
 pls_is_gamma_nash = Axis[]
 for alpha_idx in 5:-1:1, lambda_idx in 1:1:5
 	ylabel_ = lambda_idx == 1 ? string(raw"$",set_alpha[alpha_idx],raw"$") : ""
@@ -102,17 +102,17 @@ for alpha_idx in 5:-1:1, lambda_idx in 1:1:5
 	#pl_expected_reward_r = plot_val!(pl_expected_reward_r, babbling_reward_r[alpha_idx,lambda_idx,:]; color = "darkgray", style = "dotted");
 	#pl_expected_reward_r = plot_eq_bound!(pl_expected_reward_r);
 
-	# MUTUAL INFORMATION
-	pl_mutual_information = plot_dist(mutual_information[alpha_idx,lambda_idx,:,:];
+	# POSTERIOR MEAN VARIANCE
+	pl_posterior_mean_variance = plot_dist(posterior_mean_variance[alpha_idx,lambda_idx,:,:];
 									ylabel = ylabel_, xlabel = xlabel_,
 									color = "blue",
 									ymin=0, ymax=1, n_steps=65,
 									additional = "ticks=none",
 									width = 0.375, height = 0.375 * ratio^(-1));
-	pl_mutual_information = plot_interpolated_val!(pl_mutual_information, best_nash["mutual_information"]; color = "red", style = "solid, line width=1.8pt", opacity = 0.4, ymin=0, ymax=1, n_steps=65);
-	babbling_mutual_information = fill(best_nash["mutual_information"][end],length(set_biases))
-	pl_mutual_information = plot_val!(pl_mutual_information, babbling_mutual_information; color = "darkgray", style = "dotted");
-	pl_mutual_information = plot_eq_bound!(pl_mutual_information,best_nash["mutual_information"]);
+	pl_posterior_mean_variance = plot_interpolated_val!(pl_posterior_mean_variance, best_nash["posterior_mean_variance"]; color = "red", style = "solid, line width=1.8pt", opacity = 0.4, ymin=0, ymax=1, n_steps=65);
+	babbling_posterior_mean_variance = fill(best_nash["posterior_mean_variance"][end],length(set_biases))
+	pl_posterior_mean_variance = plot_val!(pl_posterior_mean_variance, babbling_posterior_mean_variance; color = "darkgray", style = "dotted");
+	pl_posterior_mean_variance = plot_eq_bound!(pl_posterior_mean_variance,best_nash["posterior_mean_variance"]);
 
 	# IS NASH
 	pl_is_gamma_nash = plot_avg(is_nash[alpha_idx,lambda_idx,:,:];
@@ -122,17 +122,17 @@ for alpha_idx in 5:-1:1, lambda_idx in 1:1:5
 									ci_flag = false,
 									additional = string("ticks=none, ",axis_style),
 									width = 0.27, height = 0.27 * ratio^(-1));
-	pl_is_gamma_nash = plot_eq_bound!(pl_is_gamma_nash,best_nash["mutual_information"]);
+	pl_is_gamma_nash = plot_eq_bound!(pl_is_gamma_nash,best_nash["posterior_mean_variance"]);
 	@pgf push!(pl_is_gamma_nash, HLine({"color = gray", "style = dashed, very thin", "on layer = axis background"}, 0))
 	@pgf push!(pl_is_gamma_nash, HLine({"color = gray", "style = dashed, very thin", "on layer = axis background"}, 1))
 
-	push!(pls_mutual_information, pl_mutual_information)
+	push!(pls_posterior_mean_variance, pl_posterior_mean_variance)
 	push!(pls_is_gamma_nash, pl_is_gamma_nash)
 end
 
-group_pl_mutual_information = @pgf GroupPlot(
+group_pl_posterior_mean_variance = @pgf GroupPlot(
 							{ group_style = { group_size="3 by 3", raw"horizontal sep = 10pt", raw"vertical sep = 10pt" },
-   							 }, pls_mutual_information[[1,3,5,11,13,15,21,23,25]]...);
+   							 }, pls_posterior_mean_variance[[1,3,5,11,13,15,21,23,25]]...);
 
 group_pl_is_gamma_nash = @pgf GroupPlot(
 							{ group_style = { group_size="5 by 5", raw"horizontal sep = 5pt", raw"vertical sep = 5pt" },
@@ -150,7 +150,7 @@ function save_plots(tikz_dir, pdf_dir, file_name, plot)
 end
 
 plots = [
-    	("grid_mutual_information", group_pl_mutual_information),
+    	("grid_posterior_mean_variance", group_pl_posterior_mean_variance),
        	("grid_is_gamma_nash", group_pl_is_gamma_nash),
 	]
 

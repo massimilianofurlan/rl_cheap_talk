@@ -61,8 +61,7 @@ function compute_group_statistics(results, group)
     expected_reward_r = results["expected_reward_r"][group]
     absolute_error_s = results["absolute_error_s"][group]
     absolute_error_r = results["absolute_error_r"][group]
-    mutual_information = results["mutual_information"][group]
-    residual_variance = results["residual_variance"][group]
+    posterior_mean_variance = results["posterior_mean_variance"][group]
     n_off_path_messages = results["n_off_path_messages"][group]
     max_mass_on_suboptim_s = results["max_mass_on_suboptim_s"][group]
     max_mass_on_suboptim_r = results["max_mass_on_suboptim_r"][group]
@@ -85,10 +84,8 @@ function compute_group_statistics(results, group)
     # average expected error
     avg_absolute_error_s = mean_std(absolute_error_s)
     avg_absolute_error_r = mean_std(absolute_error_r)
-    # average mutual info
-    avg_mutual_information = mean_std(mutual_information)
-    # average residual variance
-    avg_residual_variance = mean_std(residual_variance)
+    # average normalized variance of posterior means
+    avg_posterior_mean_variance = mean_std(posterior_mean_variance)
     # on-path and off-path messages
     avg_n_on_path_messages = mean_std(n_messages .- n_off_path_messages)
     # number of messages with no sysnonims
@@ -118,11 +115,11 @@ function compute_group_statistics(results, group)
 
 
     statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
-                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
+                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages, 
                   max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, 
                   freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r)
     var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
-                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_mutual_information, avg_residual_variance, avg_n_on_path_messages, avg_n_effective_messages, 
+                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages, 
                   max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, 
                   freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
@@ -171,4 +168,3 @@ end
     end
     return nash_dists
 end=#
-

@@ -51,8 +51,7 @@ n_episodes = cat(extracted_data["n_episodes"]...,dims=2);
 is_converged = cat(extracted_data["is_converged"]...,dims=2);
 expected_reward_s = cat(extracted_data["expected_reward_s"]...,dims=2);
 expected_reward_r = cat(extracted_data["expected_reward_r"]...,dims=2);
-mutual_information = cat(extracted_data["mutual_information"]...,dims=2);
-residual_variance = cat(extracted_data["residual_variance"]...,dims=2);
+posterior_mean_variance = cat(extracted_data["posterior_mean_variance"]...,dims=2);
 absolute_error_s = cat(extracted_data["absolute_error_s"]...,dims=2);
 absolute_error_r = cat(extracted_data["absolute_error_r"]...,dims=2);
 max_absolute_error = cat(extracted_data["max_absolute_error"]...,dims=2);
@@ -67,11 +66,10 @@ babbling_reward_s = extracted_data["babbling_reward_s"];
 babbling_reward_r = extracted_data["babbling_reward_r"];
 expected_reward_s_best = best_nash["expected_reward_s"];
 expected_reward_r_best = best_nash["expected_reward_r"];
-mutual_information_best = best_nash["mutual_information"];
-residual_variance_best = best_nash["residual_variance"];
+posterior_mean_variance_best = best_nash["posterior_mean_variance"];
 expected_reward_s_nash = set_nash["expected_reward_s"];
 expected_reward_r_nash = set_nash["expected_reward_r"];
-mutual_information_nash = set_nash["mutual_information"];
+posterior_mean_variance_nash = set_nash["posterior_mean_variance"];
 induced_actions_nash = set_nash["induced_actions"];
 
 n_simulations, n_biases = size(n_episodes)
@@ -89,14 +87,14 @@ is_epsilon_nash = max_absolute_error .< 1f-4
 modal_policy_s = fill(NaN32, n_states,n_messages,n_biases)
 modal_policy_r = fill(NaN32, n_messages,n_actions,n_biases)
 modal_induced_actions = fill(NaN32, n_states,n_actions,n_biases)
-modal_mutual_information = fill(NaN32, n_biases)
+modal_posterior_mean_variance = fill(NaN32, n_biases)
 modal_expected_reward_s = fill(NaN32, n_biases)
 modal_expected_reward_r = fill(NaN32, n_biases)
 freq_ia = zeros(Float32,n_biases)
 modal_policy_s_nash = fill(NaN32, n_states,n_messages,n_biases)
 modal_policy_r_nash = fill(NaN32, n_messages,n_actions,n_biases)
 modal_induced_actions_nash = fill(NaN32, n_states,n_actions,n_biases)
-modal_mutual_information_nash = fill(NaN32, n_biases)
+modal_posterior_mean_variance_nash = fill(NaN32, n_biases)
 modal_expected_reward_s_nash = fill(NaN32, n_biases)
 modal_expected_reward_r_nash = fill(NaN32, n_biases)
 freq_ia_nash = zeros(Float32,n_biases)
@@ -112,7 +110,7 @@ for bias_idx in 1:n_biases
  	modal_induced_actions_idx = findfirst(all(induced_actions_ .== modal_induced_actions[:,:,bias_idx],dims=1:2)[:])
 	modal_policy_s[:,:,bias_idx] = policy_s[:,:,modal_induced_actions_idx,bias_idx]
 	modal_policy_r[:,:,bias_idx] = policy_r[:,:,modal_induced_actions_idx,bias_idx]
-	modal_mutual_information[bias_idx] = get_mutual_information(modal_policy_s[:,:,bias_idx])
+	modal_posterior_mean_variance[bias_idx] = get_posterior_mean_variance(modal_policy_s[:,:,bias_idx])
 	modal_expected_reward_s[bias_idx], modal_expected_reward_r[bias_idx] = get_expected_rewards(modal_induced_actions[:,:,bias_idx])
 
 	# modal policy for sessions converged to a gamma nash
@@ -125,7 +123,7 @@ for bias_idx in 1:n_biases
  	modal_induced_actions_idx = findfirst(all(induced_actions_ .== modal_induced_actions[:,:,bias_idx],dims=1:2)[:])
 	modal_policy_s_nash[:,:,bias_idx] = policy_s[:,:,modal_induced_actions_idx,bias_idx]
 	modal_policy_r_nash[:,:,bias_idx] = policy_r[:,:,modal_induced_actions_idx,bias_idx]
-	modal_mutual_information_nash[bias_idx] = get_mutual_information(modal_policy_s[:,:,bias_idx])
+	modal_posterior_mean_variance_nash[bias_idx] = get_posterior_mean_variance(modal_policy_s[:,:,bias_idx])
 	modal_expected_reward_s_nash[bias_idx], modal_expected_reward_r_nash[bias_idx] = get_expected_rewards(modal_induced_actions[:,:,bias_idx])
 end
 
@@ -134,18 +132,18 @@ unique_induced_actions_nash = unique(cat(unique(induced_actions_nash)...,dims=3)
 n_unique_induced_actions = size(unique_induced_actions_nash,3)
 existence_range = zeros(Float32, n_unique_induced_actions,2)
 set_biases_nash = range(0.0f0,0.5f0,n_biases_nash)
-unique_mutual_information_nash = zeros(Float32, n_unique_induced_actions)
+unique_posterior_mean_variance_nash = zeros(Float32, n_unique_induced_actions)
 for ia_idx in 1:n_unique_induced_actions
 	exists = falses(n_biases_nash)
 	for bias_idx in 1:n_biases_nash
 		nash_idx = all(unique_induced_actions_nash[:,:,ia_idx] .== induced_actions_nash[bias_idx], dims=1:2)[:]
 		exists[bias_idx] = any(nash_idx) || continue
-		unique_mutual_information_nash[ia_idx] = mutual_information_nash[bias_idx][nash_idx][1]
+		unique_posterior_mean_variance_nash[ia_idx] = posterior_mean_variance_nash[bias_idx][nash_idx][1]
 	end
 	existence_range[ia_idx,:] .= set_biases_nash[[findfirst(exists), findlast(exists)]]
 end
-perm = sortperm(-unique_mutual_information_nash)
-unique_mutual_information_nash = unique_mutual_information_nash[perm]
+perm = sortperm(-unique_posterior_mean_variance_nash)
+unique_posterior_mean_variance_nash = unique_posterior_mean_variance_nash[perm]
 existence_range = existence_range[perm,:]
 
 
@@ -156,51 +154,36 @@ ratio = 4/3
 
 # N EPISODES
 pl_n_episodes = plot_avg(n_episodes; title = "episodes to converge",color = "blue", legend_pos = "out_bottom");
-pl_n_episodes = plot_eq_bound!(pl_n_episodes,mutual_information_best);
+pl_n_episodes = plot_eq_bound!(pl_n_episodes,posterior_mean_variance_best);
 
 
 ####  DISTRIBUTION  #####
 #########################
 # note that distributions are fitted on a grid of n_steps intervals
 # overlaying a benchmark value to the grid without snapping values to the grid might be misleading (identical y-values are not aligned)
-# for this reason, best_mutual_information and best_expected_reward_r are snapped to the grid
+# for this reason, best_posterior_mean_variance and best_expected_reward_r are snapped to the grid
 # best_expected_reward_s is not snapped to the grid as it looks fine (and actually better, because is curved)
 
-#MUTUAL INFORMATION 
-pl_mutual_information = plot_dist(mutual_information; title = "normalized mutual information", 
+# POSTERIOR MEAN VARIANCE
+pl_posterior_mean_variance = plot_dist(posterior_mean_variance; title = "normalized posterior mean variance", 
 													  legend = "simulations", 
 													  #ylabel = raw"$I$",
 													  color = "blue",
 													  legend_pos = "out_bottom",
 													  ymin=0, ymax=1, n_steps=65);
 # interpolate benchmark points to heatmap grid (removes heatmap value distorsion)
-pl_mutual_information = plot_interpolated_val!(pl_mutual_information, mutual_information_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4, ymin=0, ymax=1, n_steps=65);
-#pl_mutual_information = plot_val!(pl_mutual_information, mutual_information_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
-babbling_mutual_information = fill(mutual_information_best[end],length(set_biases))
-pl_mutual_information = plot_val!(pl_mutual_information, babbling_mutual_information; legend = "babbling", color = "darkgray", style = "dotted");
-pl_mutual_information = plot_eq_bound!(pl_mutual_information,mutual_information_best);
-
-#RESIDUAL VARIANCE
-explained_variance = 1 .- residual_variance
-explained_variance_best = 1 .- residual_variance_best
-pl_explained_variance = plot_dist(explained_variance; title = "normalized explained variance", 
-													  legend = "simulations", 
-													  #ylabel = raw"$I$",
-													  color = "blue",
-													  legend_pos = "out_bottom",
-													  ymin=0, ymax=1, n_steps=65);
-# interpolate benchmark points to heatmap grid (removes heatmap value distorsion)
-pl_explained_variance = plot_interpolated_val!(pl_explained_variance, explained_variance_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4, ymin=0, ymax=1, n_steps=65);
-babbling_explained_variance = fill(explained_variance_best[end],length(set_biases))
-pl_explained_variance = plot_val!(pl_explained_variance, babbling_explained_variance; legend = "babbling", color = "darkgray", style = "dotted");
-pl_explained_variance = plot_eq_bound!(pl_explained_variance,explained_variance_best);
+pl_posterior_mean_variance = plot_interpolated_val!(pl_posterior_mean_variance, posterior_mean_variance_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4, ymin=0, ymax=1, n_steps=65);
+#pl_posterior_mean_variance = plot_val!(pl_posterior_mean_variance, posterior_mean_variance_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
+babbling_posterior_mean_variance = fill(posterior_mean_variance_best[end],length(set_biases))
+pl_posterior_mean_variance = plot_val!(pl_posterior_mean_variance, babbling_posterior_mean_variance; legend = "babbling", color = "darkgray", style = "dotted");
+pl_posterior_mean_variance = plot_eq_bound!(pl_posterior_mean_variance,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (SENDER)
 group_pl_expected_reward_s = plot_dist(expected_reward_s; title = string(get_title_equation(1),"ex-ante expected reward (sender)"),
 														  color = "blue", n_steps = 65);
 group_pl_expected_reward_s = plot_val!(group_pl_expected_reward_s, expected_reward_s_best; color="red", style = "solid, line width=1.8pt", opacity = 0.4);
 group_pl_expected_reward_s = plot_val!(group_pl_expected_reward_s, babbling_reward_s; color="darkgray", style = "dotted");
-group_pl_expected_reward_s = plot_eq_bound!(group_pl_expected_reward_s,mutual_information_best);
+group_pl_expected_reward_s = plot_eq_bound!(group_pl_expected_reward_s,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (RECEIVER)
 ymin = minimum(quantile_(expected_reward_r, 0.05, dims = 1))
@@ -211,7 +194,7 @@ group_pl_expected_reward_r = plot_dist(expected_reward_r; title = string(get_tit
 														  ymin=ymin, ymax=ymax, n_steps = 65);
 group_pl_expected_reward_r = plot_interpolated_val!(group_pl_expected_reward_r, expected_reward_r_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4, ymin=ymin, ymax=ymax, n_steps=65);
 group_pl_expected_reward_r = plot_val!(group_pl_expected_reward_r, babbling_reward_r; legend = "babbling", color = "darkgray", style = "dotted");
-group_pl_expected_reward_r = plot_eq_bound!(group_pl_expected_reward_r,mutual_information_best);
+group_pl_expected_reward_r = plot_eq_bound!(group_pl_expected_reward_r,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (GROUP)
 push!(group_pl_expected_reward_r.options, "legend style={legend columns = -1, legend to name={legend_group_expected_rewards}, column sep = 3.5pt}")
@@ -224,22 +207,22 @@ group_pl_expected_rewards = @pgf GroupPlot({group_style={group_size="2 by 1", ra
 # printing values for modal policies of sender and receiver 
 # all converged sessions are considered 
 
-# MUTUAL INFORMATION (with monotone partitional equilibria's values in grey)
-pl_modal_mutual_information = init_tikz_axis(title="modal normalized mutual information", xlabel=raw"$b$");
-for i in 1:length(unique_mutual_information_nash)
+# POSTERIOR MEAN VARIANCE (with monotone partitional equilibria's values in grey)
+pl_modal_posterior_mean_variance = init_tikz_axis(title="modal normalized posterior mean variance", xlabel=raw"$b$");
+for i in 1:length(unique_posterior_mean_variance_nash)
     start_point, end_point = existence_range[i, :]
-    mi_value = unique_mutual_information_nash[i] 
-    if mutual_information_best[set_biases_nash .== end_point][1] == mi_value # replace grey with red on benchmark
-    	end_point_idx = findfirst(mutual_information_best .== mi_value)
+    mi_value = unique_posterior_mean_variance_nash[i] 
+    if posterior_mean_variance_best[set_biases_nash .== end_point][1] == mi_value # replace grey with red on benchmark
+    	end_point_idx = findfirst(posterior_mean_variance_best .== mi_value)
     	end_point_idx > 0 || continue	# totally replaced by benchmark
     	end_point = set_biases_nash[end_point_idx]
     end
     pl = @pgf Plot({no_marks, line_width="1.8pt", const_plot, color="gray", opacity = 0.3, forget_plot=(i!=1)}, Coordinates([(start_point, mi_value),(end_point, mi_value)]))
-    push!(pl_modal_mutual_information, pl)    
+    push!(pl_modal_posterior_mean_variance, pl)    
 end
-add_legend!(pl_modal_mutual_information, "equilibria", "out_bottom")
-plot_val!(pl_modal_mutual_information, mutual_information_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
-plot_val!(pl_modal_mutual_information, modal_mutual_information; color="blue", style="solid, line width=0.9pt", legend = "modal outcome", opacity = 0.5);
+add_legend!(pl_modal_posterior_mean_variance, "equilibria", "out_bottom")
+plot_val!(pl_modal_posterior_mean_variance, posterior_mean_variance_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
+plot_val!(pl_modal_posterior_mean_variance, modal_posterior_mean_variance; color="blue", style="solid, line width=0.9pt", legend = "modal outcome", opacity = 0.5);
 
 # EXPECTED REWARDS (SENDER)
 ymin, ymax = extrema(modal_expected_reward_s)
@@ -247,7 +230,7 @@ pl_modal_expected_reward_s = init_tikz_axis(title="ex-ante expected reward (send
 plot_val!(pl_modal_expected_reward_s, expected_reward_s_best; color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
 plot_val!(pl_modal_expected_reward_s, modal_expected_reward_s; color="blue", style="solid, line width=1pt", opacity = 0.5);
 plot_val!(pl_modal_expected_reward_s, babbling_reward_s; color="darkgray", style = "dotted");
-plot_eq_bound!(pl_modal_expected_reward_s,mutual_information_best);
+plot_eq_bound!(pl_modal_expected_reward_s,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (RECEIVER)
 ymin, ymax = extrema(modal_expected_reward_r)
@@ -255,7 +238,7 @@ pl_modal_expected_reward_r = init_tikz_axis(title="ex-ante expected reward (rece
 plot_val!(pl_modal_expected_reward_r, expected_reward_r_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
 plot_val!(pl_modal_expected_reward_r, modal_expected_reward_r; color="blue", style="solid, line width=1pt", legend = "modal outcome", opacity = 0.5);
 plot_val!(pl_modal_expected_reward_r, babbling_reward_r; color="darkgray", style = "dotted");
-plot_eq_bound!(pl_modal_expected_reward_r,mutual_information_best);
+plot_eq_bound!(pl_modal_expected_reward_r,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (GROUP)
 push!(pl_modal_expected_reward_r.options, "legend style={legend columns = -1, legend to name={legend_group_expected_rewards}, column sep = 3.5pt}")
@@ -268,22 +251,22 @@ group_pl_modal_expected_rewards = @pgf GroupPlot({group_style={group_size="2 by 
 # printing values for modal policies of sender and receiver 
 # restricted to sessions converged to a gamma-nash
 
-# MUTUAL INFORMATION (with monotone partitional equilibria's values in grey)
-pl_modal_mutual_information_nash = init_tikz_axis(title="modal normalized mutual information", xlabel=raw"$b$");
-for i in 1:length(unique_mutual_information_nash)
+# POSTERIOR MEAN VARIANCE (with monotone partitional equilibria's values in grey)
+pl_modal_posterior_mean_variance_nash = init_tikz_axis(title="modal normalized posterior mean variance", xlabel=raw"$b$");
+for i in 1:length(unique_posterior_mean_variance_nash)
     start_point, end_point = existence_range[i, :]
-    mi_value = unique_mutual_information_nash[i] 
-    if mutual_information_best[set_biases_nash .== end_point][1] == mi_value # replace grey with red on benchmark
-    	end_point_idx = findfirst(mutual_information_best .== mi_value) - 1
+    mi_value = unique_posterior_mean_variance_nash[i] 
+    if posterior_mean_variance_best[set_biases_nash .== end_point][1] == mi_value # replace grey with red on benchmark
+    	end_point_idx = findfirst(posterior_mean_variance_best .== mi_value) - 1
     	end_point_idx > 0 || continue	# totally replaced by benchmark
     	end_point = set_biases_nash[end_point_idx]
     end
     pl = @pgf Plot({no_marks, line_width="1.8pt", const_plot, color="gray", opacity = 0.3, forget_plot=(i!=1)}, Coordinates([(start_point, mi_value),(end_point, mi_value)]))
-    push!(pl_modal_mutual_information_nash, pl)    
+    push!(pl_modal_posterior_mean_variance_nash, pl)    
 end
-add_legend!(pl_modal_mutual_information_nash, "equilibria", "out_bottom")
-plot_val!(pl_modal_mutual_information_nash, mutual_information_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
-plot_val!(pl_modal_mutual_information_nash, modal_mutual_information_nash; color="blue", style="solid, line width=0.9pt", legend = "modal outcome", opacity = 0.5);
+add_legend!(pl_modal_posterior_mean_variance_nash, "equilibria", "out_bottom")
+plot_val!(pl_modal_posterior_mean_variance_nash, posterior_mean_variance_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
+plot_val!(pl_modal_posterior_mean_variance_nash, modal_posterior_mean_variance_nash; color="blue", style="solid, line width=0.9pt", legend = "modal outcome", opacity = 0.5);
 
 # EXPECTED REWARDS (SENDER)
 ymin, ymax = extrema(filter(!isnan,modal_expected_reward_s_nash))
@@ -291,7 +274,7 @@ pl_modal_expected_reward_s_nash = init_tikz_axis(title="ex-ante expected reward 
 plot_val!(pl_modal_expected_reward_s_nash, expected_reward_s_best; color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
 plot_val!(pl_modal_expected_reward_s_nash, modal_expected_reward_s_nash; color="blue", style="solid, line width=1pt", opacity = 0.5);
 plot_val!(pl_modal_expected_reward_s_nash, babbling_reward_s; color="darkgray", style = "dotted");
-plot_eq_bound!(pl_modal_expected_reward_s_nash,mutual_information_best);
+plot_eq_bound!(pl_modal_expected_reward_s_nash,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (RECEIVER)
 ymin, ymax = extrema(filter(!isnan,modal_expected_reward_r_nash))
@@ -299,7 +282,7 @@ pl_modal_expected_reward_r_nash = init_tikz_axis(title="ex-ante expected reward 
 plot_val!(pl_modal_expected_reward_r_nash, expected_reward_r_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
 plot_val!(pl_modal_expected_reward_r_nash, modal_expected_reward_r_nash; color="blue", style="solid, line width=1pt", legend = "modal outcome", opacity = 0.5);
 plot_val!(pl_modal_expected_reward_r_nash, babbling_reward_r; color="darkgray", style = "dotted");
-plot_eq_bound!(pl_modal_expected_reward_r_nash,mutual_information_best);
+plot_eq_bound!(pl_modal_expected_reward_r_nash,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (GROUP)
 push!(pl_modal_expected_reward_r_nash.options, "legend style={legend columns = -1, legend to name={legend_group_expected_rewards}, column sep = 3.5pt}")
@@ -322,7 +305,7 @@ pl_absolute_error_s = plot_avg(absolute_error_s;
 								ymin=0, ymax = y_max,
 								ci_flag = false,
 								width = 0.35 * ratio, height = 0.35 * ratio^-1);
-pl_absolute_error_s = plot_eq_bound!(pl_absolute_error_s,mutual_information_best);
+pl_absolute_error_s = plot_eq_bound!(pl_absolute_error_s,posterior_mean_variance_best);
 
 # ABSOLUTE ERROR (RECEIVER)
 pl_absolute_error_r = plot_avg(absolute_error_r;
@@ -334,7 +317,7 @@ pl_absolute_error_r = plot_avg(absolute_error_r;
 								ymin=0, ymax = y_max,
 								ci_flag = false,
 								width = 0.35 * ratio, height = 0.35 * ratio^-1);
-pl_absolute_error_r = plot_eq_bound!(pl_absolute_error_r,mutual_information_best);
+pl_absolute_error_r = plot_eq_bound!(pl_absolute_error_r,posterior_mean_variance_best);
 
 
 # MAXIMUM MASS ON SUBOTPIMAL (SENDER)
@@ -348,7 +331,7 @@ pl_max_mass_on_suboptim_s = plot_avg(max_mass_on_suboptim_s;
 								ymin = 0, ymax = y_max,
 								ci_flag = false,
 								width = 0.35 * ratio, height = 0.35 * ratio^-1);
-pl_max_mass_on_suboptim_s = plot_eq_bound!(pl_max_mass_on_suboptim_s,mutual_information_best);
+pl_max_mass_on_suboptim_s = plot_eq_bound!(pl_max_mass_on_suboptim_s,posterior_mean_variance_best);
 
 # MAXIMUM MASS ON SUBOTPIMAL (RECEIVER)
 pl_max_mass_on_suboptim_r = plot_avg(max_mass_on_suboptim_r;
@@ -359,7 +342,7 @@ pl_max_mass_on_suboptim_r = plot_avg(max_mass_on_suboptim_r;
 								ymin = 0, ymax = y_max,
 								ci_flag = false,
 								width = 0.35 * ratio, height = 0.35 * ratio^-1);
-pl_max_mass_on_suboptim_r = plot_eq_bound!(pl_max_mass_on_suboptim_r,mutual_information_best);
+pl_max_mass_on_suboptim_r = plot_eq_bound!(pl_max_mass_on_suboptim_r,posterior_mean_variance_best);
 
 
 # ABSOLUTE ERROR AND MAXIMUM MASS ON SUBOTPIMAL (GROUP)
@@ -375,7 +358,7 @@ pl_is_gamma_nash = plot_avg(is_gamma_nash;
 								ymin=0.55,
 								ci_flag = false,
 								width = 0.35 * ratio, height = 0.35 * ratio^-1);
-pl_is_gamma_nash = plot_eq_bound!(pl_is_gamma_nash,mutual_information_best);
+pl_is_gamma_nash = plot_eq_bound!(pl_is_gamma_nash,posterior_mean_variance_best);
 
 # IS EPSILON NASH
 pl_is_epsilon_nash = plot_avg(is_epsilon_nash;
@@ -386,7 +369,7 @@ pl_is_epsilon_nash = plot_avg(is_epsilon_nash;
 								ymin=0.55,
 								ci_flag = false,
 								width = 0.35 * ratio, height = 0.35 * ratio^-1);
-pl_is_epsilon_nash = plot_eq_bound!(pl_is_epsilon_nash,mutual_information_best);
+pl_is_epsilon_nash = plot_eq_bound!(pl_is_epsilon_nash,posterior_mean_variance_best);
 
 group_pl_nash = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt"},}, pl_is_gamma_nash, pl_is_epsilon_nash);
 
@@ -401,21 +384,21 @@ pl_on_path_messages = plot_dist(n_on_path_messages;
 								color = "red",
 								ymin= 0, ymax = maximum(n_on_path_messages),
 								height = 0.3166*ratio, width = 0.3166);
-pl_on_path_messages = plot_eq_bound!(pl_on_path_messages,mutual_information_best);
+pl_on_path_messages = plot_eq_bound!(pl_on_path_messages,posterior_mean_variance_best);
 # EFFECTIVE MESSAGES
 pl_effective_messages = plot_dist(n_effective_messages; 
 								title = "effective", 
 								color = "blue",
 								ymin= 0, ymax = maximum(n_on_path_messages),
 								height = 0.3166*ratio, width = 0.3166);
-pl_effective_messages = plot_eq_bound!(pl_effective_messages,mutual_information_best);
+pl_effective_messages = plot_eq_bound!(pl_effective_messages,posterior_mean_variance_best);
 # SYNONIMS
 pl_synonyms = plot_dist(n_on_path_messages-n_effective_messages; 
 								title = "synonyms", 
 								color = "green",
 								ymin= 0, ymax = maximum(n_on_path_messages),
 								height = 0.3166*ratio, width = 0.3166);
-pl_synonyms = plot_eq_bound!(pl_synonyms,mutual_information_best);
+pl_synonyms = plot_eq_bound!(pl_synonyms,posterior_mean_variance_best);
 # GROUP WORDS
 group_pl_words = @pgf GroupPlot({group_style={group_size="3 by 1",raw"horizontal sep = 25pt"},}, pl_on_path_messages, pl_effective_messages, pl_synonyms);
 
@@ -424,7 +407,7 @@ pl_is_partitional = plot_dist(is_partitional;
 								title = "is partitional", 
 								ymin = 0, ymax = 1);
 pl_is_partitional = plot_avg!(pl_is_partitional, is_partitional; ci_flag = false);
-pl_is_partitional = plot_eq_bound!(pl_is_partitional,mutual_information_best);
+pl_is_partitional = plot_eq_bound!(pl_is_partitional,posterior_mean_variance_best);
 
 
 # MODAL POLICIES
@@ -471,10 +454,9 @@ function save_plots(tikz_dir, pdf_dir, file_name, plot)
 end
 
 plots = [
-    	("mutual_information", pl_mutual_information),
-    	("mutual_information_modal", pl_modal_mutual_information),
-    	("mutual_information_modal_nash", pl_modal_mutual_information_nash),
-    	("explained_variance", pl_explained_variance),
+    	("posterior_mean_variance", pl_posterior_mean_variance),
+    	("posterior_mean_variance_modal", pl_modal_posterior_mean_variance),
+    	("posterior_mean_variance_modal_nash", pl_modal_posterior_mean_variance_nash),
     	("group_expected_rewards", group_pl_expected_rewards),
     	("group_expected_rewards_modal", group_pl_modal_expected_rewards),
     	("group_expected_rewards_modal_nash", group_pl_modal_expected_rewards_nash),
