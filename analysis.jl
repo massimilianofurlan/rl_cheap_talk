@@ -39,21 +39,24 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
     is_greedy_r = Array{Bool,1}(undef, n_simulations)
 
     Threads.@threads for z in 1:n_simulations
-        # order Q-matrices
-        order = get_order(Q_s[:,:,z])
-        Q_s[:,:,z] = Q_s[:,order,z]
-        Q_r[:,:,z] = Q_r[order,:,z]
         # get policies at convergence
         policy_s[:,:,z] = get_policy(Q_s[:,:,z], expl_s[n_episodes[z]])
         policy_r[:,:,z] = get_policy(Q_r[:,:,z], expl_r[n_episodes[z]])
-        policy_s_ = policy_s[:,:,z]
-        policy_r_ = policy_r[:,:,z]
+        # order Q-matrices and policies
+        order = get_order(policy_s[:,:,z])
+        Q_s[:,:,z] = Q_s[:,order,z]
+        Q_r[:,:,z] = Q_r[order,:,z]
+        policy_s[:,:,z] = policy_s[:,order,z]
+        policy_r[:,:,z] = policy_r[order,:,z]
+        # local aliases avoid repeated slicing allocations
+        Q_s_, Q_r_ = Q_s[:,:,z], Q_r[:,:,z]
+        policy_s_, policy_r_ = policy_s[:,:,z], policy_r[:,:,z]
         # get true q-matrices
         q_s[:,:,z] = get_q_s(policy_r_)
         q_r[:,:,z] = get_q_r(policy_s_)
         # get margin estimation error
-        margin_error_s[:,z] = get_Q_margin(Q_s[:,:,z]) - get_Q_margin(q_s[:,:,z])
-        margin_error_r[:,z] = get_Q_margin(Q_r[:,:,z]) - get_Q_margin(q_r[:,:,z])
+        margin_error_s[:,z] = get_Q_margin(Q_s_) - get_Q_margin(q_s[:,:,z])
+        margin_error_r[:,z] = get_Q_margin(Q_r_) - get_Q_margin(q_r[:,:,z])
         # compute induced actions at convergence
         induced_actions[:,:,z] = get_induced_actions(policy_s_, policy_r_)
         # compute (ex-ante) expected rewards at convergence
@@ -90,10 +93,10 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # check if agents have converged 
         is_converged[z] = n_episodes[z] < n_max_episodes
         # check if converged policies are greedy wrt converged Q-values
-        is_greedy_s[z] = is_greedy(Q_s[:,:,z], policy_s_)
-        is_greedy_r[z] = is_greedy(Q_r[:,:,z], policy_r_)
+        is_greedy_s[z] = is_greedy(Q_s_, policy_s_)
+        is_greedy_r[z] = is_greedy(Q_r_, policy_r_)
         # check if Q_s,Q_r induce self-confirming policies
-        is_absorbing[z] = is_greedy_absorbing(Q_s[:,:,z], Q_r[:,:,z])
+        is_absorbing[z] = is_greedy_absorbing(Q_s_, Q_r_)
     end
 
     # convert results to dict
@@ -210,22 +213,19 @@ end
 
 # policy
 
-function get_order(Q_s::Array{Float32,2})
-    # returns a permutation of messages that associates higher messages with higher states as much as possible
-    order = collect(1:n_messages)
-    m_ = 1
-    for t in 1:n_states
-        set_m = argmax_(Q_s[t,:])                   # index of most frequently sent message in state t
-        length(set_m) < n_messages || continue      # skip (inconsequential) reordering if all messages are synonym
-        for m in set_m
-            m < m_ && continue
-            temp = order[m_]
-            order[m_] = order[m]
-            order[m] = temp
-            m_ += 1
+function get_order(policy_s::Array{Float32,2})
+    # returns permutation that sorts messages by posterior mean (off-path messages at the end)
+    p_m = @fastmath policy_s' * p_t
+    posterior_mean = fill(Inf32, n_messages)
+    @fastmath for m in 1:n_messages
+        p_m[m] <= ptol && continue
+        posterior_mean[m] = 0f0
+        for t in 1:n_states
+            posterior_mean[m] += p_t[t] * policy_s[t,m] * T[t]
         end
+        posterior_mean[m] /= p_m[m]
     end
-    return order
+    return sortperm(posterior_mean)
 end
 
 
@@ -282,7 +282,7 @@ function is_greedy(Q::Array{Float32,2}, policy::Array{Float32,2})
 end
 
 function is_greedy_absorbing(Q_s::Array{Float32,2}, Q_r::Array{Float32,2})
-    # necessary and sufficient for absorption: greedy argmax-sets are self-confirming given (Q_s,Q_r)
+    # necessary and sufficient for (a strong, worst-case notion of) absorption: greedy argmax-sets are self-confirming given (Q_s,Q_r)
     # assumes π(·|s) to be greedy with uniform tie-breaking from Q(s,·)
     # for each agent checks that min{ min{supp r(s,a)} : a∈supp(π(·|s)) } >= max{ Q(s,b) : b∉supp(π(·|s)) }
     # and if |supp(π(·|s))|>1 then r(s,a) is constant over a∈supp(π(·|s)) and Q(s,a) equals that constant

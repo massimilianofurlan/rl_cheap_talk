@@ -81,13 +81,13 @@ function extract_data(config, results, extracted_data)
 	# compute metrics of interest for converged sessions
 	Threads.@threads for z in 1:n_converged
 		is_converged[z] == true || continue
-        # order Q-matrices
-		order = get_order(Q_s[:,:,z])
-        Q_s[:,:,z] = Q_s[:,order,z]
-        Q_r[:,:,z] = Q_r[order,:,z]
         # get policies at convergence
         policy_s[:,:,z] = get_policy(Q_s[:,:,z], max(expl0_s * exp(-expl_decay_s*(n_episodes[z]-1)), 1f-30))
         policy_r[:,:,z] = get_policy(Q_r[:,:,z], max(expl0_r * exp(-expl_decay_r*(n_episodes[z]-1)), 1f-30))
+        # order Q-matrices and policies
+		order = get_order(policy_s[:,:,z])
+        Q_s[:,:,z], Q_r[:,:,z] = Q_s[:,order,z], Q_r[order,:,z]
+        policy_s[:,:,z], policy_r[:,:,z] = policy_s[:,order,z], policy_r[order,:,z]
         policy_s_ = policy_s[:,:,z]
         policy_r_ = policy_r[:,:,z]
         # compute induced actions at convergence
