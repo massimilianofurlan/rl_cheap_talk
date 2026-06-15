@@ -82,8 +82,8 @@ function extract_data(config, results, extracted_data)
 	Threads.@threads for z in 1:n_converged
 		is_converged[z] == true || continue
         # get policies at convergence
-        policy_s[:,:,z] = get_policy(Q_s[:,:,z], max(expl0_s * exp(-expl_decay_s*(n_episodes[z]-1)), 1f-30))
-        policy_r[:,:,z] = get_policy(Q_r[:,:,z], max(expl0_r * exp(-expl_decay_r*(n_episodes[z]-1)), 1f-30))
+        policy_s[:,:,z] = get_policy(Q_s[:,:,z], 1f-30)
+        policy_r[:,:,z] = get_policy(Q_r[:,:,z], 1f-30)
         # order Q-matrices and policies
 		order = get_order(policy_s[:,:,z])
         Q_s[:,:,z], Q_r[:,:,z] = Q_s[:,order,z], Q_r[order,:,z]

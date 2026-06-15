@@ -40,8 +40,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
 
     Threads.@threads for z in 1:n_simulations
         # get policies at convergence
-        policy_s[:,:,z] = get_policy(Q_s[:,:,z], expl_s[n_episodes[z]])
-        policy_r[:,:,z] = get_policy(Q_r[:,:,z], expl_r[n_episodes[z]])
+        policy_s[:,:,z] = get_policy(Q_s[:,:,z], 1f-30)
+        policy_r[:,:,z] = get_policy(Q_r[:,:,z], 1f-30)
         # order Q-matrices and policies
         order = get_order(policy_s[:,:,z])
         Q_s[:,:,z] = Q_s[:,order,z]
