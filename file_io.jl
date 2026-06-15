@@ -22,8 +22,8 @@ function parse_commandline()
             range_tester = x -> (x > 0 || x == -1)
         "--n_actions", "-a"
             arg_type = Int64
-            help = "number of actions (default: 2*n_states-1)"
-            range_tester = x -> x > 0
+            help = "number of actions, -1 for A = set of optimal actions under quadratic loss (default: 2*n_states-1)"
+            range_tester = x -> (x > 0 || x == -1)
         "--bias", "-b"
             arg_type = Float32
             help = "sender's bias"
@@ -77,9 +77,13 @@ function parse_commandline()
     elseif parsed_args["n_messages"] == -1
         parsed_args["n_messages"] = get_N(parsed_args["bias"], parsed_args["n_states"])[1]
     end
-    # default n_actions is 2 * n_states -1 
+    # default n_actions is 2 * n_states -1
     if parsed_args["n_actions"] == nothing
         parsed_args["n_actions"] = 2 * parsed_args["n_states"] - 1
+    end
+    # optimal-action set (n_actions = -1) is defined only under quadratic loss
+    if parsed_args["n_actions"] == -1 && parsed_args["loss"] != "quadratic"
+        error("n_actions = -1 requires quadratic loss")
     end
     # raw mode is quiet and does not save_all
     if parsed_args["raw"] == true

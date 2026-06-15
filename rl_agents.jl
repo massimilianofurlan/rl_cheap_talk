@@ -166,6 +166,16 @@ function gen_distribution()
     return p_t
 end
 
+# set of actions
+
+function gen_actions(n_actions::Int64)
+    # n_actions > 0 : uniformly spaced actions in [0,1]
+    # n_actions = -1 : optimal actions on contiguous-interval posteriors (quadratic only)
+    n_actions == -1 || return collect(0f0:1f0/(n_actions-1):1f0)
+    A = [(p_t[i:j]' * T[i:j]) / sum(p_t[i:j]) for i in 1:n_states for j in i:n_states]
+    return sort(unique(round.(A, digits=7)))
+end
+
 # generic functions
 
 function norm_(A::Array{Float32,2})

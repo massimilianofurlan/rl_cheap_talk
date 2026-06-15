@@ -29,29 +29,30 @@ const n_agents = 2
 
 # number of states of the world
 const n_states = config["n_states"]
-# number of actions for the receiver
-const n_actions = config["n_actions"]
 # number of possible messages
 const n_messages = config["n_messages"]
 
 # set of states
 const T = collect(0:1f0/(n_states-1):1) 
-# set of actions
-const A = collect(0:1f0/(n_actions-1):1)
 # set of messages
 const M = n_messages < 26 ? collect('a':'z')[1:n_messages] : collect(1:n_messages)
 
-# loss type 
-const loss_type = config["loss"]
-# senders' bias
-const bias::Float32 = config["bias"]
-# reward matrices
-const reward_matrix_s, reward_matrix_r = gen_reward_matrix()
 # prior distribution 
 const dist_type = config["dist"]
 const p_t = gen_distribution()
 # communication channel
 #const noise::Float32 = config["noise"]
+
+# set of actions for the receiver
+const A = gen_actions(config["n_actions"])
+const n_actions = length(A)
+
+# loss type
+const loss_type = config["loss"]
+# senders' bias
+const bias::Float32 = config["bias"]
+# reward matrices
+const reward_matrix_s, reward_matrix_r = gen_reward_matrix()
 
 # babbling rewards (receiver randomizes uniformly over pure best replies)
 const babbling_actions = argmax_(reward_matrix_r*p_t)

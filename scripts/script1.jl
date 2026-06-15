@@ -37,8 +37,8 @@ function parse_commandline()
             range_tester = x -> (x > 0 || x == -1)
         "--n_actions", "-a"
             arg_type = Int64
-            help = "number of actions (default: 2*n_states-1)"
-            range_tester = x -> x > 0
+            help = "number of actions, -1 for optimal (default: 2*n_states-1)"
+            range_tester = x -> (x > 0 || x == -1)
        "--step_bias"
             arg_type = Float32
             help = "space between points in [0.0,0.5]"

@@ -185,14 +185,14 @@ function read_data(dir)
 	global n_simulations = config_["n_simulations"]
 	global n_states = config_["n_states"]
 	global n_messages = config_["n_messages"]
-	global n_actions = config_["n_actions"]
 	global T = collect(0:1f0/(n_states-1):1) 
-	global A = collect(0:1f0/(n_actions-1):1)
 	global loss_type = config_["loss"]
 	global dist_type = config_["dist"]
+	global p_t = gen_distribution()
+	global A = gen_actions(config_["n_actions"])
+	global n_actions = length(A)
 	global policy_type = config_["policy_type"]
 	global get_policy = policy_type == "eps-greedy" ? get_epsgreedy_policy : get_softmax_policy
-	global p_t = gen_distribution()
 	global expl0_s = Float32(config_["expl0_s"])
 	global expl0_r = Float32(config_["expl0_r"])
 	global expl_decay_s = Float32(config_["expl_decay_s"])
