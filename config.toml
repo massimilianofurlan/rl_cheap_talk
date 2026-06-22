@@ -29,8 +29,8 @@ alpha_r = 0.10
 # policy type (softmax, eps-greedy)
 policy_type = "softmax"
 # exploration decay
-expl_decay_s = 0.000005
-expl_decay_r = 0.000005
+expl_decay_s = 1.25e-6
+expl_decay_r = 1.25e-6
 expl0_s = 0.1
 expl0_r = 0.1
 
