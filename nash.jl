@@ -66,6 +66,13 @@ function is_exact_nash(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
     return is_best_reply_s && is_best_reply_r
 end
 
+function is_best_policy_r_unique(policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
+    # checks if the receiver's best reply is unique on path
+    on_path = (policy_s' * p_t) .> ptol
+    n_best_replies = sum(policy_r .> 0, dims=2)
+    return !any(on_path .& (n_best_replies .> 1))
+end
+
 function get_exante_receiver_optimal()
     # get ex-ante receiver optimal equilibrium by scanning over all possible partitional equilibria
     # Frug (2016) shows receiver's optimal equilibrium is partitional
@@ -111,6 +118,8 @@ function get_best_nash()
     best_posterior = get_posterior(best_policy_s)
     # check if a marginal change in bias changes the pareto optimal nash equilibrium
     is_borderline = get_N(bias, n_states) != get_N(bias+1f-3, n_states)
+    # if the receiver's best reply is not unique on path the benchmark depends on the uniform tie-breaking
+    is_best_policy_r_unique(best_policy_s, best_policy_r) || @warn "there may be multiple exante receiver preferred equilibria" maxlog=20
 
     # convert pareto optimum variables to dict
     best_nash = (best_induced_actions, best_policy_s, best_policy_r, best_expected_reward_s, best_expected_reward_r, best_posterior_mean_variance, best_posterior, n_messages_on_path, is_borderline)

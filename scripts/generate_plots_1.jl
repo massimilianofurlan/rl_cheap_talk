@@ -86,6 +86,9 @@ is_epsilon_nash = max_absolute_error .< 1f-4
 
 modal_policy_s = fill(NaN32, n_states,n_messages,n_biases)
 modal_policy_r = fill(NaN32, n_messages,n_actions,n_biases)
+optimal_policy_s = fill(NaN32, n_states,n_messages,n_biases)
+optimal_policy_r = fill(NaN32, n_messages,n_actions,n_biases)
+optimal_induced_actions = fill(NaN32, n_states,n_actions,n_biases)
 modal_induced_actions = fill(NaN32, n_states,n_actions,n_biases)
 modal_posterior_mean_variance = fill(NaN32, n_biases)
 modal_expected_reward_s = fill(NaN32, n_biases)
@@ -101,6 +104,11 @@ freq_ia_nash = zeros(Float32,n_biases)
 for bias_idx in 1:n_biases
 	global bias = set_biases[bias_idx]
 	global reward_matrix_s, reward_matrix_r = gen_reward_matrix()
+	# optimal (Pareto-efficient / receiver-preferred) equilibrium policy at this bias
+	best_nash_i = get_best_nash()
+	optimal_policy_s[:,:,bias_idx] = best_nash_i["best_policy_s"]
+	optimal_policy_r[:,:,bias_idx] = best_nash_i["best_policy_r"]
+	optimal_induced_actions[:,:,bias_idx] = best_nash_i["best_induced_actions"]
 	# modal induced actions for converged sessions
 	induced_actions_ = induced_actions[:,:,:,bias_idx]
 	unique_induced_actions = unique(induced_actions_,dims=3)
@@ -410,19 +418,88 @@ pl_is_partitional = plot_avg!(pl_is_partitional, is_partitional; ci_flag = false
 pl_is_partitional = plot_eq_bound!(pl_is_partitional,posterior_mean_variance_best);
 
 
-# MODAL POLICIES
-bias_idxs = trunc.(Int,[1 + (n_biases - 1) / 20 * (2^i - 1) for i in 0:4])
-group_policies_s, group_policies_r = [], []
-for bias_idx in bias_idxs
-	hm_modal_policy_s = plot_policy(modal_policy_s[:,:,bias_idx], raw"$\theta$", bias_idx == 1 ? raw"$m$" : "", 0:0.5:1, bias_idx == 1 ? (1:n_messages) : "", (n_states-1)/2, 1, string(raw"$b=",set_biases[bias_idx],raw"$"));
-	hm_modal_policy_r = plot_policy(modal_policy_r[:,:,bias_idx], raw"$m$",  bias_idx == 1 ? raw"$a$" : "", 1:n_messages, bias_idx == 1 ? (0:0.25:1) : "", 1, (n_actions-1)/4, "");
-	n_on_path_messages_modal = findlast(sum(modal_policy_s[:,:,bias_idx], dims=1) .> 0.01)[2];
-	@pgf push!(hm_modal_policy_r,VLine({loosely_dashed, black}, n_on_path_messages_modal+0.5));
-	@pgf push!(hm_modal_policy_s,HLine({loosely_dashed, black}, n_messages-n_on_path_messages_modal+0.5));
-	push!(group_policies_s, hm_modal_policy_s)
-	push!(group_policies_r, hm_modal_policy_r)
+# group consecutive biases sharing the same induced type->action map (argmax action per type)
+function distinct_equilibria(induced, biases)
+	maps = [[argmax(induced[t,:,bi]) for t in 1:size(induced,1)] for bi in 1:length(biases)]
+	groups = Tuple{Int,Float32,Float32}[]
+	start = 1
+	for i in 2:length(biases)
+		maps[i] == maps[start] && continue
+		push!(groups, (start, biases[start], biases[i-1]))
+		start = i
+	end
+	push!(groups, (start, biases[start], biases[end]))
+	return groups
 end
-group_pl_policies = @pgf GroupPlot({group_style={group_size="$(length(bias_idxs)) by 2", raw"horizontal sep = 10pt", raw"vertical sep = 35pt"},}, group_policies_s..., group_policies_r...);
+
+# bias-range label cell (first column) and empty spacer column
+range_title(lo, hi) = string(raw"$[", round(lo, digits=3), ", ", round(hi, digits=3), raw"]$")
+range_cell(txt, header) = @pgf Axis({axis_lines = "none", xtick = raw"\empty", ytick = raw"\empty", clip = false, title = header, width = raw"0.28\linewidth", height = raw"0.25\linewidth", xmin = 0, xmax = 1, ymin = 0, ymax = 1}, string(raw"\node[anchor=center] at (axis cs:0.5,0.5) {", txt, raw"};"))
+spacer() = @pgf Axis({hide_axis, "scale only axis", width = raw"0.02\linewidth", height = raw"0.25\linewidth", xmin = 0, xmax = 1, ymin = 0, ymax = 1})
+
+
+# OPTIMAL EQUILIBRIA
+opt_groups = distinct_equilibria(optimal_induced_actions, set_biases)
+group_policies_optimal = []
+for (j, (idx, b_lo, b_hi)) in enumerate(opt_groups)
+	bottom = j == length(opt_groups)
+	hm_policy_s = plot_policy(optimal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^S$" : "");
+	hm_policy_r = plot_policy(optimal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^R$" : "");
+	hm_induced = plot_policy(optimal_induced_actions[:,:,idx], bottom ? raw"$\theta$" : "", raw"$a$", bottom ? (0:0.5:1) : "", 0:0.25:1, (n_states-1)/2, (n_actions-1)/4, j == 1 ? raw"$\Theta \times A$" : "");
+	n_on_path = findlast(sum(optimal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
+	@pgf push!(hm_policy_s, HLine({loosely_dashed, black}, n_messages - n_on_path + 0.5));
+	@pgf push!(hm_policy_r, VLine({loosely_dashed, black}, n_on_path + 0.5));
+	push!(group_policies_optimal, range_cell(range_title(b_lo, b_hi), j == 1 ? raw"$b$" : ""))
+	push!(group_policies_optimal, hm_policy_s)
+	push!(group_policies_optimal, hm_policy_r)
+	push!(group_policies_optimal, hm_induced)
+end
+group_pl_policies_optimal = @pgf GroupPlot({group_style = {group_size = "4 by $(length(opt_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_optimal...);
+
+# CONVERGED EQUILIBRIA
+conv_groups = distinct_equilibria(modal_induced_actions, set_biases)
+group_policies_converged = []
+for (j, (idx, b_lo, b_hi)) in enumerate(conv_groups)
+	bottom = j == length(conv_groups)
+	hm_policy_s = plot_policy(modal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^S$" : "");
+	hm_policy_r = plot_policy(modal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^R$" : "");
+	hm_induced = plot_policy(modal_induced_actions[:,:,idx], bottom ? raw"$\theta$" : "", raw"$a$", bottom ? (0:0.5:1) : "", 0:0.25:1, (n_states-1)/2, (n_actions-1)/4, j == 1 ? raw"$\Theta \times A$" : "");
+	n_on_path = findlast(sum(modal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
+	@pgf push!(hm_policy_s, HLine({loosely_dashed, black}, n_messages - n_on_path + 0.5));
+	@pgf push!(hm_policy_r, VLine({loosely_dashed, black}, n_on_path + 0.5));
+	push!(group_policies_converged, range_cell(range_title(b_lo, b_hi), j == 1 ? raw"$b$" : ""))
+	push!(group_policies_converged, hm_policy_s)
+	push!(group_policies_converged, hm_policy_r)
+	push!(group_policies_converged, hm_induced)
+end
+group_pl_policies_converged = @pgf GroupPlot({group_style = {group_size = "4 by $(length(conv_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_converged...);
+
+# COMPARISON: converged and optimal side by side, rows split wherever either changes
+cmp_groups = distinct_equilibria(vcat(modal_induced_actions, optimal_induced_actions), set_biases)
+group_policies_comparison = []
+for (j, (idx, b_lo, b_hi)) in enumerate(cmp_groups)
+	bottom = j == length(cmp_groups)
+	hm_modal_s = plot_policy(modal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^S$" : "");
+	hm_modal_r = plot_policy(modal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^R$" : "");
+	hm_optimal_s = plot_policy(optimal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^{S\ast}$" : "");
+	hm_optimal_r = plot_policy(optimal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^{R\ast}$" : "");
+	n_on_path_modal = findlast(sum(modal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
+	n_on_path_optimal = findlast(sum(optimal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
+	@pgf push!(hm_modal_s, HLine({loosely_dashed, black}, n_messages - n_on_path_modal + 0.5));
+	@pgf push!(hm_modal_r, VLine({loosely_dashed, black}, n_on_path_modal + 0.5));
+	@pgf push!(hm_optimal_s, HLine({loosely_dashed, black}, n_messages - n_on_path_optimal + 0.5));
+	@pgf push!(hm_optimal_r, VLine({loosely_dashed, black}, n_on_path_optimal + 0.5));
+	push!(group_policies_comparison, range_cell(range_title(b_lo, b_hi), j == 1 ? raw"$b$" : ""))
+	push!(group_policies_comparison, hm_modal_s)
+	push!(group_policies_comparison, hm_modal_r)
+	push!(group_policies_comparison, spacer())
+	push!(group_policies_comparison, hm_optimal_s)
+	push!(group_policies_comparison, hm_optimal_r)
+end
+group_pl_policies_comparison = @pgf GroupPlot({group_style = {group_size = "6 by $(length(cmp_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_comparison...);
+
+# sampled biases retained for the nash-only policy figure below
+bias_idxs = trunc.(Int,[1 + (n_biases - 1) / 20 * (2^i - 1) for i in 0:4])
 
 
 # MODAL POLICIES (only for sessions converged to nash)
@@ -460,7 +537,9 @@ plots = [
     	("group_expected_rewards", group_pl_expected_rewards),
     	("group_expected_rewards_modal", group_pl_modal_expected_rewards),
     	("group_expected_rewards_modal_nash", group_pl_modal_expected_rewards_nash),
-       	("group_policies", group_pl_policies),
+       	("group_policies_optimal", group_pl_policies_optimal),
+       	("group_policies_converged", group_pl_policies_converged),
+       	("group_policies_comparison", group_pl_policies_comparison),
        	("group_policies_nash", group_pl_policies_nash),
     	("group_errors", group_pl_errors),
     	("group_nash", group_pl_nash),
