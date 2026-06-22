@@ -96,8 +96,8 @@ julia --threads=auto scripts/generate_plots_1.jl -i=out_absolute --step_bias=0.0
 To run the simulations navigate to the project directory and run 
 
 ```
-julia --threads=auto --check-bounds=no scripts/script1.jl -c=basecase -o=out_increasing -n=6 -a=21 -d=increasing -N=1000 --step_bias=0.005
-julia --threads=auto --check-bounds=no scripts/script1.jl -c=basecase -o=out_decreasing -n=6 -a=21 -d=decreasing -N=1000 --step_bias=0.005
+julia --threads=auto --check-bounds=no scripts/script1.jl -c=basecase -o=out_increasing -n=6 -d=increasing -N=1000 --step_bias=0.005
+julia --threads=auto --check-bounds=no scripts/script1.jl -c=basecase -o=out_decreasing -n=6 -d=decreasing -N=1000 --step_bias=0.005
 ```
 
 To generate the figures run
