@@ -19,7 +19,7 @@ expl0_r = 0.1
 # BASE-CASE CONFIGURATION
 [basecase]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 25000000
 convergence_threshold = 1000000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
@@ -38,7 +38,7 @@ expl0_r = 0.1
 # BASECASE W/ LESS EXPLORATION
 [less_exploration]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 25000000
 convergence_threshold = 1000000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
@@ -57,7 +57,7 @@ expl0_r = 0.1
 # BASECASE W/ MORE EXPLORATION
 [more_exploration]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 25000000
 convergence_threshold = 1000000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
@@ -76,7 +76,7 @@ expl0_r = 0.1
 # EPSILON GREEDY
 [eps-greedy]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 25000000
 convergence_threshold = 1000000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
@@ -95,7 +95,7 @@ expl0_r = 0.50
 # GRID SEARCH CONFIGURATION
 [gridsearch]
 # number of episodes
-n_max_episodes = 10000000
+n_max_episodes = 25000000
 convergence_threshold = 1000000
 # initialization (random, optimistic, pessimistic)
 q_init = "random"
