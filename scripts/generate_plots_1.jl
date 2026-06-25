@@ -8,6 +8,7 @@
 using PGFPlotsX
 using StatsBase
 using Base.Threads
+using Printf
 
 include(joinpath(pwd(),"scripts/plots.jl"))
 include(joinpath(pwd(),"scripts/read_data.jl"))
@@ -94,13 +95,6 @@ modal_posterior_mean_variance = fill(NaN32, n_biases)
 modal_expected_reward_s = fill(NaN32, n_biases)
 modal_expected_reward_r = fill(NaN32, n_biases)
 freq_ia = zeros(Float32,n_biases)
-modal_policy_s_nash = fill(NaN32, n_states,n_messages,n_biases)
-modal_policy_r_nash = fill(NaN32, n_messages,n_actions,n_biases)
-modal_induced_actions_nash = fill(NaN32, n_states,n_actions,n_biases)
-modal_posterior_mean_variance_nash = fill(NaN32, n_biases)
-modal_expected_reward_s_nash = fill(NaN32, n_biases)
-modal_expected_reward_r_nash = fill(NaN32, n_biases)
-freq_ia_nash = zeros(Float32,n_biases)
 for bias_idx in 1:n_biases
 	global bias = set_biases[bias_idx]
 	global reward_matrix_s, reward_matrix_r = gen_reward_matrix()
@@ -120,19 +114,6 @@ for bias_idx in 1:n_biases
 	modal_policy_r[:,:,bias_idx] = policy_r[:,:,modal_induced_actions_idx,bias_idx]
 	modal_posterior_mean_variance[bias_idx] = get_posterior_mean_variance(modal_policy_s[:,:,bias_idx])
 	modal_expected_reward_s[bias_idx], modal_expected_reward_r[bias_idx] = get_expected_rewards(modal_induced_actions[:,:,bias_idx])
-
-	# modal policy for sessions converged to a gamma nash
-	any(is_gamma_nash[:,bias_idx]) || continue
-	induced_actions_ = induced_actions[:,:,:,bias_idx]
-	unique_induced_actions = unique(induced_actions_,dims=3)
-	freq_induced_actions  =	[count(all(induced_actions_ .== induced_actions, dims=1:2)) for induced_actions in eachslice(unique_induced_actions, dims=3)]
-	modal_induced_actions_nash[:,:,bias_idx] = unique_induced_actions[:,:,argmax(freq_induced_actions)]
-	freq_ia_nash[bias_idx] = maximum(freq_induced_actions)
- 	modal_induced_actions_idx = findfirst(all(induced_actions_ .== modal_induced_actions[:,:,bias_idx],dims=1:2)[:])
-	modal_policy_s_nash[:,:,bias_idx] = policy_s[:,:,modal_induced_actions_idx,bias_idx]
-	modal_policy_r_nash[:,:,bias_idx] = policy_r[:,:,modal_induced_actions_idx,bias_idx]
-	modal_posterior_mean_variance_nash[bias_idx] = get_posterior_mean_variance(modal_policy_s[:,:,bias_idx])
-	modal_expected_reward_s_nash[bias_idx], modal_expected_reward_r_nash[bias_idx] = get_expected_rewards(modal_induced_actions[:,:,bias_idx])
 end
 
 # (c) compute range of existence of monotone partitional equilibria (identified by their induced actions)
@@ -158,6 +139,7 @@ existence_range = existence_range[perm,:]
 
 # GENERATE PLOTS
 push!(PGFPlotsX.CUSTOM_PREAMBLE, "\\usepgfplotslibrary{fillbetween}")
+push!(PGFPlotsX.CUSTOM_PREAMBLE, "\\usetikzlibrary{calc}")
 ratio = 4/3
 
 # N EPISODES
@@ -205,8 +187,8 @@ group_pl_expected_reward_r = plot_val!(group_pl_expected_reward_r, babbling_rewa
 group_pl_expected_reward_r = plot_eq_bound!(group_pl_expected_reward_r,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (GROUP)
-push!(group_pl_expected_reward_r.options, "legend style={legend columns = -1, legend to name={legend_group_expected_rewards}, column sep = 3.5pt}")
-group_pl_expected_rewards = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt" },}, group_pl_expected_reward_s, group_pl_expected_reward_r);
+push!(group_pl_expected_reward_r.options, "legend style={legend columns = -1, legend to name={legend_expected_rewards}, column sep = 3.5pt}")
+pl_expected_rewards = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt" },}, group_pl_expected_reward_s, group_pl_expected_reward_r);
 
 
 
@@ -249,52 +231,8 @@ plot_val!(pl_modal_expected_reward_r, babbling_reward_r; color="darkgray", style
 plot_eq_bound!(pl_modal_expected_reward_r,posterior_mean_variance_best);
 
 # EXPECTED REWARDS (GROUP)
-push!(pl_modal_expected_reward_r.options, "legend style={legend columns = -1, legend to name={legend_group_expected_rewards}, column sep = 3.5pt}")
-group_pl_modal_expected_rewards = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt"},}, pl_modal_expected_reward_s, pl_modal_expected_reward_r);
-
-
-
-#####  MODE (NASH) ######
-#########################
-# printing values for modal policies of sender and receiver 
-# restricted to sessions converged to a gamma-nash
-
-# POSTERIOR MEAN VARIANCE (with monotone partitional equilibria's values in grey)
-pl_modal_posterior_mean_variance_nash = init_tikz_axis(title="modal normalized posterior mean variance", xlabel=raw"$b$");
-for i in 1:length(unique_posterior_mean_variance_nash)
-    start_point, end_point = existence_range[i, :]
-    mi_value = unique_posterior_mean_variance_nash[i] 
-    if posterior_mean_variance_best[set_biases_nash .== end_point][1] == mi_value # replace grey with red on benchmark
-    	end_point_idx = findfirst(posterior_mean_variance_best .== mi_value) - 1
-    	end_point_idx > 0 || continue	# totally replaced by benchmark
-    	end_point = set_biases_nash[end_point_idx]
-    end
-    pl = @pgf Plot({no_marks, line_width="1.8pt", const_plot, color="gray", opacity = 0.3, forget_plot=(i!=1)}, Coordinates([(start_point, mi_value),(end_point, mi_value)]))
-    push!(pl_modal_posterior_mean_variance_nash, pl)    
-end
-add_legend!(pl_modal_posterior_mean_variance_nash, "equilibria", "out_bottom")
-plot_val!(pl_modal_posterior_mean_variance_nash, posterior_mean_variance_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
-plot_val!(pl_modal_posterior_mean_variance_nash, modal_posterior_mean_variance_nash; color="blue", style="solid, line width=0.9pt", legend = "modal outcome", opacity = 0.5);
-
-# EXPECTED REWARDS (SENDER)
-ymin, ymax = extrema(filter(!isnan,modal_expected_reward_s_nash))
-pl_modal_expected_reward_s_nash = init_tikz_axis(title="ex-ante expected reward (sender)", xlabel=raw"$b$", ymin=ymin, ymax=ymax);
-plot_val!(pl_modal_expected_reward_s_nash, expected_reward_s_best; color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
-plot_val!(pl_modal_expected_reward_s_nash, modal_expected_reward_s_nash; color="blue", style="solid, line width=1pt", opacity = 0.5);
-plot_val!(pl_modal_expected_reward_s_nash, babbling_reward_s; color="darkgray", style = "dotted");
-plot_eq_bound!(pl_modal_expected_reward_s_nash,posterior_mean_variance_best);
-
-# EXPECTED REWARDS (RECEIVER)
-ymin, ymax = extrema(filter(!isnan,modal_expected_reward_r_nash))
-pl_modal_expected_reward_r_nash = init_tikz_axis(title="ex-ante expected reward (receiver)", xlabel=raw"$b$", ymin=ymin, ymax=ymax);
-plot_val!(pl_modal_expected_reward_r_nash, expected_reward_r_best; legend = "optimal", color = "red", style = "solid, line width=1.8pt", opacity = 0.4);
-plot_val!(pl_modal_expected_reward_r_nash, modal_expected_reward_r_nash; color="blue", style="solid, line width=1pt", legend = "modal outcome", opacity = 0.5);
-plot_val!(pl_modal_expected_reward_r_nash, babbling_reward_r; color="darkgray", style = "dotted");
-plot_eq_bound!(pl_modal_expected_reward_r_nash,posterior_mean_variance_best);
-
-# EXPECTED REWARDS (GROUP)
-push!(pl_modal_expected_reward_r_nash.options, "legend style={legend columns = -1, legend to name={legend_group_expected_rewards}, column sep = 3.5pt}")
-group_pl_modal_expected_rewards_nash = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt"},}, pl_modal_expected_reward_s_nash, pl_modal_expected_reward_r_nash);
+push!(pl_modal_expected_reward_r.options, "legend style={legend columns = -1, legend to name={legend_expected_rewards}, column sep = 3.5pt}")
+pl_expected_rewards_modal = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt"},}, pl_modal_expected_reward_s, pl_modal_expected_reward_r);
 
 
 
@@ -354,7 +292,7 @@ pl_max_mass_on_suboptim_r = plot_eq_bound!(pl_max_mass_on_suboptim_r,posterior_m
 
 
 # ABSOLUTE ERROR AND MAXIMUM MASS ON SUBOTPIMAL (GROUP)
-group_pl_errors = @pgf GroupPlot({group_style={group_size="2 by 2",raw"horizontal sep = 50pt, vertical sep = 60pt"},}, pl_max_mass_on_suboptim_s, pl_max_mass_on_suboptim_r, pl_absolute_error_s, pl_absolute_error_r);
+pl_optimization_errors = @pgf GroupPlot({group_style={group_size="2 by 2",raw"horizontal sep = 50pt, vertical sep = 60pt"},}, pl_max_mass_on_suboptim_s, pl_max_mass_on_suboptim_r, pl_absolute_error_s, pl_absolute_error_r);
 
 
 # IS GAMMA NASH
@@ -379,36 +317,12 @@ pl_is_epsilon_nash = plot_avg(is_epsilon_nash;
 								width = 0.35 * ratio, height = 0.35 * ratio^-1);
 pl_is_epsilon_nash = plot_eq_bound!(pl_is_epsilon_nash,posterior_mean_variance_best);
 
-group_pl_nash = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt"},}, pl_is_gamma_nash, pl_is_epsilon_nash);
+pl_frequency_nash = @pgf GroupPlot({group_style={group_size="2 by 1", raw"horizontal sep = 60pt"},}, pl_is_gamma_nash, pl_is_epsilon_nash);
 
 
 
 ###  SENDER'S POLICY ####
 #########################
-
-# ON PATH MESSAGES
-pl_on_path_messages = plot_dist(n_on_path_messages; 
-								title = "on-path", 
-								color = "red",
-								ymin= 0, ymax = maximum(n_on_path_messages),
-								height = 0.3166*ratio, width = 0.3166);
-pl_on_path_messages = plot_eq_bound!(pl_on_path_messages,posterior_mean_variance_best);
-# EFFECTIVE MESSAGES
-pl_effective_messages = plot_dist(n_effective_messages; 
-								title = "effective", 
-								color = "blue",
-								ymin= 0, ymax = maximum(n_on_path_messages),
-								height = 0.3166*ratio, width = 0.3166);
-pl_effective_messages = plot_eq_bound!(pl_effective_messages,posterior_mean_variance_best);
-# SYNONIMS
-pl_synonyms = plot_dist(n_on_path_messages-n_effective_messages; 
-								title = "synonyms", 
-								color = "green",
-								ymin= 0, ymax = maximum(n_on_path_messages),
-								height = 0.3166*ratio, width = 0.3166);
-pl_synonyms = plot_eq_bound!(pl_synonyms,posterior_mean_variance_best);
-# GROUP WORDS
-group_pl_words = @pgf GroupPlot({group_style={group_size="3 by 1",raw"horizontal sep = 25pt"},}, pl_on_path_messages, pl_effective_messages, pl_synonyms);
 
 # IS PARTITIONAL
 pl_is_partitional = plot_dist(is_partitional; 
@@ -433,9 +347,9 @@ function distinct_equilibria(induced, biases)
 end
 
 # bias-range label cell (first column) and empty spacer column
-range_title(lo, hi) = string(raw"$[", round(lo, digits=3), ", ", round(hi, digits=3), raw"]$")
-range_cell(txt, header) = @pgf Axis({axis_lines = "none", xtick = raw"\empty", ytick = raw"\empty", clip = false, title = header, width = raw"0.28\linewidth", height = raw"0.25\linewidth", xmin = 0, xmax = 1, ymin = 0, ymax = 1}, string(raw"\node[anchor=center] at (axis cs:0.5,0.5) {", txt, raw"};"))
-spacer() = @pgf Axis({hide_axis, "scale only axis", width = raw"0.02\linewidth", height = raw"0.25\linewidth", xmin = 0, xmax = 1, ymin = 0, ymax = 1})
+range_title(lo, hi) = string(raw"$[", @sprintf("%.3f", lo), ", ", @sprintf("%.3f", hi), raw"]$")
+range_cell(txt, header; width = raw"0.28\linewidth", height = raw"0.25\linewidth") = @pgf Axis({axis_lines = "none", xtick = raw"\empty", ytick = raw"\empty", clip = false, title = header, width = width, height = height, xmin = 0, xmax = 1, ymin = 0, ymax = 1}, string(raw"\node[anchor=center, font=\scriptsize] at (axis cs:0.5,0.5) {", txt, raw"};"))
+spacer(; width = raw"0.02\linewidth") = @pgf Axis({hide_axis, "scale only axis", width = width, height = raw"1pt", xmin = 0, xmax = 1, ymin = 0, ymax = 1})
 
 
 # OPTIMAL EQUILIBRIA
@@ -443,8 +357,8 @@ opt_groups = distinct_equilibria(optimal_induced_actions, set_biases)
 group_policies_optimal = []
 for (j, (idx, b_lo, b_hi)) in enumerate(opt_groups)
 	bottom = j == length(opt_groups)
-	hm_policy_s = plot_policy(optimal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^S$" : "");
-	hm_policy_r = plot_policy(optimal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^R$" : "");
+	hm_policy_s = plot_policy(optimal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi_{\ast}^{S}$" : "");
+	hm_policy_r = plot_policy(optimal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi_{\ast}^{R}$" : "");
 	hm_induced = plot_policy(optimal_induced_actions[:,:,idx], bottom ? raw"$\theta$" : "", raw"$a$", bottom ? (0:0.5:1) : "", 0:0.25:1, (n_states-1)/2, (n_actions-1)/4, j == 1 ? raw"$\Theta \times A$" : "");
 	n_on_path = findlast(sum(optimal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
 	@pgf push!(hm_policy_s, HLine({loosely_dashed, black}, n_messages - n_on_path + 0.5));
@@ -454,15 +368,15 @@ for (j, (idx, b_lo, b_hi)) in enumerate(opt_groups)
 	push!(group_policies_optimal, hm_policy_r)
 	push!(group_policies_optimal, hm_induced)
 end
-group_pl_policies_optimal = @pgf GroupPlot({group_style = {group_size = "4 by $(length(opt_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_optimal...);
+pl_policy_profiles_equilibria = @pgf GroupPlot({group_style = {group_size = "4 by $(length(opt_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_optimal...);
 
 # CONVERGED EQUILIBRIA
 conv_groups = distinct_equilibria(modal_induced_actions, set_biases)
 group_policies_converged = []
 for (j, (idx, b_lo, b_hi)) in enumerate(conv_groups)
 	bottom = j == length(conv_groups)
-	hm_policy_s = plot_policy(modal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^S$" : "");
-	hm_policy_r = plot_policy(modal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^R$" : "");
+	hm_policy_s = plot_policy(modal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi_{\infty}^{S}$" : "");
+	hm_policy_r = plot_policy(modal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi_{\infty}^{R}$" : "");
 	hm_induced = plot_policy(modal_induced_actions[:,:,idx], bottom ? raw"$\theta$" : "", raw"$a$", bottom ? (0:0.5:1) : "", 0:0.25:1, (n_states-1)/2, (n_actions-1)/4, j == 1 ? raw"$\Theta \times A$" : "");
 	n_on_path = findlast(sum(modal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
 	@pgf push!(hm_policy_s, HLine({loosely_dashed, black}, n_messages - n_on_path + 0.5));
@@ -472,54 +386,85 @@ for (j, (idx, b_lo, b_hi)) in enumerate(conv_groups)
 	push!(group_policies_converged, hm_policy_r)
 	push!(group_policies_converged, hm_induced)
 end
-group_pl_policies_converged = @pgf GroupPlot({group_style = {group_size = "4 by $(length(conv_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_converged...);
+pl_policy_profiles_learned = @pgf GroupPlot({group_style = {group_size = "4 by $(length(conv_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_converged...);
 
-# COMPARISON: converged and optimal side by side, rows split wherever either changes
+# COMPARISON: converged and optimal side by side, rows split wherever either changes.
+# Rendered as TWO groupplots (learned | equilibria) so the middle gap (cmp_gap) is
+# fully independent of the within-half column spacing.
 cmp_groups = distinct_equilibria(vcat(modal_induced_actions, optimal_induced_actions), set_biases)
-group_policies_comparison = []
+ncmp = length(cmp_groups)
+cmp_gap = "50pt"   # horizontal gap between the learned and the equilibria halves — tune this only
+cmp_panel = raw"0.20\linewidth"   # heatmap panel size (default elsewhere is 0.25\linewidth)
+cells_learned, cells_equil = [], []
 for (j, (idx, b_lo, b_hi)) in enumerate(cmp_groups)
-	bottom = j == length(cmp_groups)
-	hm_modal_s = plot_policy(modal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^S$" : "");
-	hm_modal_r = plot_policy(modal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^R$" : "");
-	hm_optimal_s = plot_policy(optimal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi^{S\ast}$" : "");
-	hm_optimal_r = plot_policy(optimal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi^{R\ast}$" : "");
+	bottom = j == ncmp
+	hm_modal_s = plot_policy(modal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi_{\infty}^{S}$" : ""; tick_label_font = raw"\scriptsize", width = cmp_panel, height = cmp_panel);
+	hm_modal_r = plot_policy(modal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi_{\infty}^{R}$" : ""; tick_label_font = raw"\scriptsize", ylabel_opts = raw"{rotate=-90, xshift=5pt}", width = cmp_panel, height = cmp_panel);
+	hm_optimal_s = plot_policy(optimal_policy_s[:,:,idx], bottom ? raw"$\theta$" : "", raw"$m$", bottom ? (0:0.5:1) : "", 1:n_messages, (n_states-1)/2, 1, j == 1 ? raw"$\pi_{\ast}^{S}$" : ""; tick_label_font = raw"\scriptsize", width = cmp_panel, height = cmp_panel);
+	hm_optimal_r = plot_policy(optimal_policy_r[:,:,idx], bottom ? raw"$m$" : "", raw"$a$", bottom ? (1:n_messages) : "", 0:0.25:1, 1, (n_actions-1)/4, j == 1 ? raw"$\pi_{\ast}^{R}$" : ""; tick_label_font = raw"\scriptsize", ylabel_opts = raw"{rotate=-90, xshift=5pt}", width = cmp_panel, height = cmp_panel);
 	n_on_path_modal = findlast(sum(modal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
 	n_on_path_optimal = findlast(sum(optimal_policy_s[:,:,idx], dims=1) .> 0.01)[2];
 	@pgf push!(hm_modal_s, HLine({loosely_dashed, black}, n_messages - n_on_path_modal + 0.5));
 	@pgf push!(hm_modal_r, VLine({loosely_dashed, black}, n_on_path_modal + 0.5));
 	@pgf push!(hm_optimal_s, HLine({loosely_dashed, black}, n_messages - n_on_path_optimal + 0.5));
 	@pgf push!(hm_optimal_r, VLine({loosely_dashed, black}, n_on_path_optimal + 0.5));
-	push!(group_policies_comparison, range_cell(range_title(b_lo, b_hi), j == 1 ? raw"$b$" : ""))
-	push!(group_policies_comparison, hm_modal_s)
-	push!(group_policies_comparison, hm_modal_r)
-	push!(group_policies_comparison, spacer())
-	push!(group_policies_comparison, hm_optimal_s)
-	push!(group_policies_comparison, hm_optimal_r)
+	push!(cells_learned, range_cell(range_title(b_lo, b_hi), j == 1 ? raw"$b$" : ""; width = cmp_panel, height = cmp_panel))
+	push!(cells_learned, hm_modal_s)
+	push!(cells_learned, hm_modal_r)
+	push!(cells_equil, hm_optimal_s)
+	push!(cells_equil, hm_optimal_r)
 end
-group_pl_policies_comparison = @pgf GroupPlot({group_style = {group_size = "6 by $(length(cmp_groups))", raw"horizontal sep = 45pt", raw"vertical sep = 16pt"},}, group_policies_comparison...);
+g_learned = @pgf GroupPlot({group_style = {group_name = "cmpL", group_size = "3 by $(ncmp)", raw"horizontal sep = 42pt", raw"vertical sep = 8pt"},}, cells_learned...)
+# place the equilibria group immediately to the right of the learned group, offset by cmp_gap
+cells_equil[1]["at"] = "(cmpL c3r1.north east)"
+cells_equil[1]["anchor"] = "north west"
+cells_equil[1]["xshift"] = cmp_gap
+g_equil = @pgf GroupPlot({group_style = {group_size = "2 by $(ncmp)", raw"horizontal sep = 42pt", raw"vertical sep = 8pt"},}, cells_equil...)
+pl_policy_profiles_learned_vs_equilibria = @pgf TikzPicture(g_learned, g_equil)
 
-# sampled biases retained for the nash-only policy figure below
+# COMPARISON: induced state-action distribution, learned vs optimal side by side.
+# Same layout idea as policy_profiles_learned_vs_equilibria, but each half holds a single
+# heatmap: the distribution on Theta x A induced by the (modal) learned vs the optimal policies.
+# induced_actions[t,a] is the conditional P(a | theta=t); rows split wherever either changes.
+sad_groups = distinct_equilibria(vcat(modal_induced_actions, optimal_induced_actions), set_biases)
+nsad = length(sad_groups)
+sad_gap = "50pt"   # horizontal gap between the learned and the equilibria halves
+cells_sad_learned, cells_sad_equil = [], []
+for (j, (idx, b_lo, b_hi)) in enumerate(sad_groups)
+	bottom = j == nsad
+	hm_sad_modal = plot_policy(modal_induced_actions[:,:,idx], bottom ? raw"$\theta$" : "", raw"$a$", bottom ? (0:0.5:1) : "", 0:0.25:1, (n_states-1)/2, (n_actions-1)/4, j == 1 ? raw"$(\Theta \times A)_{\infty}$" : ""; tick_label_font = raw"\scriptsize");
+	hm_sad_optimal = plot_policy(optimal_induced_actions[:,:,idx], bottom ? raw"$\theta$" : "", raw"$a$", bottom ? (0:0.5:1) : "", 0:0.25:1, (n_states-1)/2, (n_actions-1)/4, j == 1 ? raw"$(\Theta \times A)_{\ast}$" : ""; tick_label_font = raw"\scriptsize", ylabel_opts = raw"{rotate=-90, xshift=5pt}");
+	push!(cells_sad_learned, range_cell(range_title(b_lo, b_hi), j == 1 ? raw"$b$" : ""))
+	push!(cells_sad_learned, hm_sad_modal)
+	push!(cells_sad_equil, hm_sad_optimal)
+end
+g_sad_learned = @pgf GroupPlot({group_style = {group_name = "sadL", group_size = "2 by $(nsad)", raw"horizontal sep = 42pt", raw"vertical sep = 16pt"},}, cells_sad_learned...)
+# place the equilibria heatmap immediately to the right of the learned half, offset by sad_gap
+cells_sad_equil[1]["at"] = "(sadL c2r1.north east)"
+cells_sad_equil[1]["anchor"] = "north west"
+cells_sad_equil[1]["xshift"] = sad_gap
+g_sad_equil = @pgf GroupPlot({group_style = {group_size = "1 by $(nsad)", raw"vertical sep = 16pt"},}, cells_sad_equil...)
+pl_state_action_distribution_learned_vs_equilibria = @pgf TikzPicture(g_sad_learned, g_sad_equil)
+
+# sampled biases retained for the policy-sample figure below
 bias_idxs = trunc.(Int,[1 + (n_biases - 1) / 20 * (2^i - 1) for i in 0:4])
 
 
-# MODAL POLICIES (only for sessions converged to nash)
-bias_idxs = bias_idxs[any(is_gamma_nash[:,bias_idxs],dims=1)[:]]
-group_policies_s_nash, group_policies_r_nash = [], []
+# LEARNED POLICIES (modal converged policy at sampled biases)
+group_policies_s_sample, group_policies_r_sample = [], []
 for bias_idx in bias_idxs
-	hm_modal_policy_s_nash = plot_policy(modal_policy_s_nash[:,:,bias_idx], raw"$\theta$", bias_idx == 1 ? raw"$m$" : "", 0:0.5:1, bias_idx == 1 ? (1:n_messages) : "", (n_states-1)/2, 1, string(raw"$b=",set_biases[bias_idx],raw"$"));
-	hm_modal_policy_r_nash = plot_policy(modal_policy_r_nash[:,:,bias_idx], raw"$m$",  bias_idx == 1 ? raw"$a$" : "", 1:n_messages, bias_idx == 1 ? (0:0.25:1) : "", 1, (n_actions-1)/4, "");
-	n_on_path_messages_modal = findlast(sum(modal_policy_s_nash[:,:,bias_idx], dims=1) .> 0.01)[2];
-	@pgf push!(hm_modal_policy_r_nash,VLine({loosely_dashed, black}, n_on_path_messages_modal+0.5));
-	@pgf push!(hm_modal_policy_s_nash,HLine({loosely_dashed, black}, n_messages-n_on_path_messages_modal+0.5));
-	push!(group_policies_s_nash, hm_modal_policy_s_nash)
-	push!(group_policies_r_nash, hm_modal_policy_r_nash)
+	hm_modal_policy_s = plot_policy(modal_policy_s[:,:,bias_idx], raw"$\theta$", bias_idx == 1 ? raw"$m$" : "", 0:0.5:1, bias_idx == 1 ? (1:n_messages) : "", (n_states-1)/2, 1, string(raw"$b=",set_biases[bias_idx],raw"$"));
+	hm_modal_policy_r = plot_policy(modal_policy_r[:,:,bias_idx], raw"$m$",  bias_idx == 1 ? raw"$a$" : "", 1:n_messages, bias_idx == 1 ? (0:0.25:1) : "", 1, (n_actions-1)/4, "");
+	n_on_path_messages_modal = findlast(sum(modal_policy_s[:,:,bias_idx], dims=1) .> 0.01)[2];
+	@pgf push!(hm_modal_policy_r,VLine({loosely_dashed, black}, n_on_path_messages_modal+0.5));
+	@pgf push!(hm_modal_policy_s,HLine({loosely_dashed, black}, n_messages-n_on_path_messages_modal+0.5));
+	push!(group_policies_s_sample, hm_modal_policy_s)
+	push!(group_policies_r_sample, hm_modal_policy_r)
 end
-group_pl_policies_nash = @pgf GroupPlot({group_style={group_size="$(length(bias_idxs)) by 2", raw"horizontal sep = 10pt", raw"vertical sep = 35pt"},}, group_policies_s_nash..., group_policies_r_nash...);
+pl_policy_profiles_learned_sample = @pgf GroupPlot({group_style={group_size="$(length(bias_idxs)) by 2", raw"horizontal sep = 10pt", raw"vertical sep = 35pt"},}, group_policies_s_sample..., group_policies_r_sample...);
 
-pl_freq_ia_nash = init_tikz_axis(title = raw"p(mode)", ymin=0, ymax=1)
-pl_freq_ia = init_tikz_axis(title = raw"p(mode)", ymin=0, ymax=1)
-pl_freq_ia_nash = plot_val!(pl_freq_ia_nash,freq_ia_nash/n_simulations)
-pl_freq_ia = plot_val!(pl_freq_ia,freq_ia/n_simulations)
+pl_freq_modal_policy_profile = init_tikz_axis(title = "frequency of modal policy profile", ymin=0, ymax=1)
+pl_freq_modal_policy_profile = plot_val!(pl_freq_modal_policy_profile,freq_ia/n_simulations)
 
 # save plots
 pdf_dir = mkpath(joinpath(input_dir,"pdf"))
@@ -533,21 +478,18 @@ end
 plots = [
     	("posterior_mean_variance", pl_posterior_mean_variance),
     	("posterior_mean_variance_modal", pl_modal_posterior_mean_variance),
-    	("posterior_mean_variance_modal_nash", pl_modal_posterior_mean_variance_nash),
-    	("group_expected_rewards", group_pl_expected_rewards),
-    	("group_expected_rewards_modal", group_pl_modal_expected_rewards),
-    	("group_expected_rewards_modal_nash", group_pl_modal_expected_rewards_nash),
-       	("group_policies_optimal", group_pl_policies_optimal),
-       	("group_policies_converged", group_pl_policies_converged),
-       	("group_policies_comparison", group_pl_policies_comparison),
-       	("group_policies_nash", group_pl_policies_nash),
-    	("group_errors", group_pl_errors),
-    	("group_nash", group_pl_nash),
-    	("group_words", group_pl_words),
+    	("expected_rewards", pl_expected_rewards),
+    	("expected_rewards_modal", pl_expected_rewards_modal),
+       	("policy_profiles_equilibria", pl_policy_profiles_equilibria),
+       	("policy_profiles_learned", pl_policy_profiles_learned),
+       	("policy_profiles_learned_vs_equilibria", pl_policy_profiles_learned_vs_equilibria),
+       	("state_action_distribution_learned_vs_equilibria", pl_state_action_distribution_learned_vs_equilibria),
+       	("policy_profiles_learned_sample", pl_policy_profiles_learned_sample),
+    	("optimization_errors", pl_optimization_errors),
+    	("frequency_nash", pl_frequency_nash),
     	("is_partitional", pl_is_partitional),
     	("n_episodes", pl_n_episodes),
-    	("freq_ia_nash", pl_freq_ia_nash),
-    	("freq_ia", pl_freq_ia),
+    	("freq_modal_policy_profile", pl_freq_modal_policy_profile),
 	]
 
 counter = Atomic{Int}(0)

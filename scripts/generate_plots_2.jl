@@ -130,11 +130,11 @@ for alpha_idx in 5:-1:1, lambda_idx in 1:1:5
 	push!(pls_is_gamma_nash, pl_is_gamma_nash)
 end
 
-group_pl_posterior_mean_variance = @pgf GroupPlot(
+pl_grid_posterior_mean_variance = @pgf GroupPlot(
 							{ group_style = { group_size="3 by 3", raw"horizontal sep = 10pt", raw"vertical sep = 10pt" },
    							 }, pls_posterior_mean_variance[[1,3,5,11,13,15,21,23,25]]...);
 
-group_pl_is_gamma_nash = @pgf GroupPlot(
+pl_grid_frequency_nash = @pgf GroupPlot(
 							{ group_style = { group_size="5 by 5", raw"horizontal sep = 5pt", raw"vertical sep = 5pt" },
    							 }, pls_is_gamma_nash...);
 
@@ -150,8 +150,8 @@ function save_plots(tikz_dir, pdf_dir, file_name, plot)
 end
 
 plots = [
-    	("grid_posterior_mean_variance", group_pl_posterior_mean_variance),
-       	("grid_is_gamma_nash", group_pl_is_gamma_nash),
+    	("grid_posterior_mean_variance", pl_grid_posterior_mean_variance),
+       	("grid_frequency_nash", pl_grid_frequency_nash),
 	]
 
 counter = Atomic{Int}(0)

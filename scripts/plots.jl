@@ -166,7 +166,7 @@ function plot_eq_bound!(pl,posterior_mean_variance_best)
 	push!(pl, pl_worst_fill);
 end
 
-function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, ystep, title)
+function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, ystep, title; tick_label_font = raw"\normalsize", ylabel_opts = raw"{rotate=-90}", width = raw"0.25\linewidth", height = raw"0.25\linewidth")
  	x = repeat(1:size(policy,1), outer = size(policy,2))
 	y = repeat(1:size(policy,2), inner = size(policy,1))
 	coord = Coordinates(x, y; meta = vec(policy[:,end:-1:1]))
@@ -182,7 +182,8 @@ function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, yste
 	        #
 	        xtick_style="{draw=none}",
     		ytick_style="{draw=none}",
-	        ylabel_style = raw"{rotate=-90}",
+	        "tick label style" = string("{font=", tick_label_font, "}"),
+	        ylabel_style = ylabel_opts,
 	        #
 			colormap= "{reversed blackwhite}{gray(0cm)=(1); gray(1cm)=(0)}",
 	        point_meta_min = 0.00,
@@ -190,8 +191,8 @@ function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, yste
 			#
 	        y_dir = "normal",
 	        enlargelimits = false,
-			width = raw"0.25\linewidth",
-            height = raw"0.25\linewidth",
+			width = width,
+            height = height,
 	    },
 	    PlotInc(
 	        {
