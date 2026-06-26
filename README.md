@@ -58,7 +58,7 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2024). Cheap 
 3. **Others:** To automatically run a batch of simulations for each bias level in {0.0, 0.01, ..., 0.49, 0.5} use 
 
     ```bash
-    julia --threads=auto scripts/script1.jl --config=CONFIG_SECTION --out_dir=OUT_DIR --step_bias=0.01
+    julia --threads=auto scripts/run_experiment.jl --config=CONFIG_SECTION --out_dir=OUT_DIR --step_bias=0.01
     ```
 
     Replace ```CONFIG_SECTION``` with the desired section from the [config](config.toml) file and ```OUT_DIR``` with the desired name for the output directory. Use ```--help``` to get the complete list of options.  
@@ -66,7 +66,7 @@ This repository contains the code for [*"D. Condorelli, M. Furlan (2024). Cheap 
     After running the script, TikZ plots can be generated using
 
     ```bash
-    julia --threads=auto scripts/generate_plots_1.jl --in_dir=OUT_DIR --step_bias=0.01
+    julia --threads=auto scripts/make_figures.jl --in_dir=OUT_DIR --step_bias=0.01
     ```
 
     where ```OUT_DIR``` must match the output folder of the previous command. Also the increment in the bias must match che one used in the previous command.

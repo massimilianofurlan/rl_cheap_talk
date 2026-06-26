@@ -1,27 +1,40 @@
 
 quantile_(data, alpha; dims = :) = mapslices(x -> quantile(x, alpha), data, dims=1)
 
-function init_tikz_axis(;title="", xlabel="", ylabel="", ylabel_style="rotate=-90", y_tick_label_style="{/pgf/number format/fixed, /pgf/number format/precision=4}", additional="", ymin=0, ymax=1, width=0.35*ratio, height=0.35)
+# figure sizing (module globals). defaults give \linewidth output; paper_figures.jl flips to
+# absolute cm w/ scale only axis. plot_policy heatmaps build their own axis (untouched)
+plot_unit = raw"\linewidth"
+plot_unit_scale = 1
+plot_scale_only_axis = false
+
+# line styling (module globals). paper_figures.jl overrides these for the paper figures;
+# titles and labels are not set here
+lw_value = "1.8pt"             # benchmark + grey equilibria lines (paper: 2.5pt)
+lw_modal = "1pt"               # modal outcome (blue) line (paper: 1.3pt)
+jump_value = "jump mark left"  # step direction of value lines (paper: jump mark right)
+
+function init_tikz_axis(;title="", xlabel="", ylabel="", ylabel_style="rotate=-90", y_tick_label_style="{/pgf/number format/fixed, /pgf/number format/precision=4}", additional="", xmin=-0.0025, xmax=0.5025, ymin=0, ymax=1, width=0.35*ratio, height=0.35)
 	pl = @pgf Axis(
 	    {	#
 	    	title = title,
 	    	xlabel = xlabel, ylabel = ylabel,
 	    	xtick = 0:0.1:0.5, #ytick = "",
-	        xmin = -0.0025, xmax = 0.5025,
+	        xmin = xmin, xmax = xmax,
 	        ymin = ymin, ymax = ymax, 
 	        #
 			y_tick_label_style = y_tick_label_style,
 	 		ylabel_style = ylabel_style,
 	        scaled_y_ticks = true,
 	        #
-			width = string(width,"\\linewidth"), 
-	        height = string(height,"\\linewidth"),
+			width = string(width*plot_unit_scale, plot_unit),
+	        height = string(height*plot_unit_scale, plot_unit),
 	        #
 	        clip = true,
 	        enlarge_y_limits=0.1,
 			align = "center",
 	    }
 	);
+    plot_scale_only_axis && push!(pl.options, "scale only axis")
     !isempty(additional) && push!(pl.options, additional)
 	return pl
 end
@@ -79,8 +92,10 @@ function plot_dist(data; legend = "", title = "", xlabel = raw"$b$", ylabel = ""
 						ymax = maximum(quantile_(data, 0.95, dims = 1)), 
 						width = 0.35*ratio, height = 0.35,
 						n_steps = 65, legend_pos = "", additional = "")
+	# x-axis margin = half the bias step, so heatmap edge cells fit inside the axis box
+	xpad = 0.5 / (size(data, 2) - 1) / 2
 	# initialize tikz plot
-	pl = init_tikz_axis(title = title, xlabel = xlabel, ylabel = ylabel, ylabel_style = ylabel_style, y_tick_label_style = y_tick_label_style, additional = additional, ymin = ymin, ymax = ymax, width = width, height = height)
+	pl = init_tikz_axis(title = title, xlabel = xlabel, ylabel = ylabel, ylabel_style = ylabel_style, y_tick_label_style = y_tick_label_style, additional = additional, xmin = -xpad, xmax = 0.5 + xpad, ymin = ymin, ymax = ymax, width = width, height = height)
 	pl = plot_dist!(pl, data, ymin = ymin, ymax = ymax, color = color, n_steps = n_steps, legend = legend, legend_pos = legend_pos)
 	return pl
 end
@@ -118,13 +133,15 @@ function plot_dist!(pl, data; ymin = minimum(quantile_(data, 0.05, dims = 1)),
 	return pl
 end
 
-function plot_val!(pl, data; legend = "", color = "red", style = "solid", opacity = 1.0, blend_mode="multiply")
-	# plot value on top of existing plot
+function plot_val!(pl, data; legend = "", color = "red", style = "solid", opacity = 1.0, blend_mode="multiply", jump_mark = jump_value, legend_pos = "out_bottom")
+	# plot value on top of existing plot. jump_mark holds the value to the right of each bias
+	# ("jump mark right") or to the left ("jump mark left", used for the modal-outcome lines)
 	val = getindex.(data,1)
     set_biases_ = range(0.0,0.5,length(data))
-    @pgf pl_val = Plot({axis_on_top, color = color, style = style, opacity = opacity, jump_mark_left, blend_mode=blend_mode}, Table(x = set_biases_, y = val));
+    @pgf pl_val = Plot({axis_on_top, color = color, style = style, opacity = opacity, blend_mode=blend_mode}, Table(x = set_biases_, y = val));
+    push!(pl_val.options, jump_mark)
 	push!(pl, pl_val);
-    !isempty(legend) && add_legend!(pl, legend, "out_bottom")
+    !isempty(legend) && add_legend!(pl, legend, legend_pos)
 	return pl
 end
 
@@ -166,7 +183,7 @@ function plot_eq_bound!(pl,posterior_mean_variance_best)
 	push!(pl, pl_worst_fill);
 end
 
-function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, ystep, title)
+function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, ystep, title; tick_label_font = raw"\normalsize", ylabel_opts = raw"{rotate=-90}", width = raw"0.25\linewidth", height = raw"0.25\linewidth")
  	x = repeat(1:size(policy,1), outer = size(policy,2))
 	y = repeat(1:size(policy,2), inner = size(policy,1))
 	coord = Coordinates(x, y; meta = vec(policy[:,end:-1:1]))
@@ -182,7 +199,8 @@ function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, yste
 	        #
 	        xtick_style="{draw=none}",
     		ytick_style="{draw=none}",
-	        ylabel_style = raw"{rotate=-90}",
+	        "tick label style" = string("{font=", tick_label_font, "}"),
+	        ylabel_style = ylabel_opts,
 	        #
 			colormap= "{reversed blackwhite}{gray(0cm)=(1); gray(1cm)=(0)}",
 	        point_meta_min = 0.00,
@@ -190,8 +208,8 @@ function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, yste
 			#
 	        y_dir = "normal",
 	        enlargelimits = false,
-			width = raw"0.25\linewidth",
-            height = raw"0.25\linewidth",
+			width = width,
+            height = height,
 	    },
 	    PlotInc(
 	        {
@@ -206,39 +224,20 @@ function plot_policy(policy, xlabel, ylabel, xticklabel, yticklabel, xstep, yste
 	return plot
 end
 
-function get_title_equation(agent_idx)
-	sender_equation = ""
-	receiver_equation = ""
-	if scrpt_config["in_dir"] == "out_3states"
-		sender_equation = raw"$|\Theta| = 3$ \\ "
-		receiver_equation = raw"$|\Theta| = 3$ \\ "
-	elseif scrpt_config["in_dir"] == "out_9states"
-		sender_equation = raw"$|\Theta| = 9$ \\ "
-		receiver_equation = raw"$|\Theta| = 9$ \\ "
-	elseif scrpt_config["in_dir"] == "out_increasing"
-		sender_equation = raw"$p(\theta_k)=2k / (n(n+1))$ \\ " 
-		receiver_equation = raw"$p(\theta_k)=2k / (n(n+1))$ \\ "
-	elseif scrpt_config["in_dir"] == "out_decreasing"
-		sender_equation = raw"$p(\theta_k)=2 (n-k+1) / (n(n+1))$ \\ " 
-		receiver_equation = raw"$p(\theta_k)=2 (n-k+1) / (n(n+1))$ \\ "
-	elseif scrpt_config["in_dir"] == "out_fourthpower" 
-		sender_equation = raw"$u_S(\theta,a) = -(a - \theta - b)^4$ \\ "
-		receiver_equation = raw"$u_R(\theta,a) = -(a - \theta)^4$ \\ "
-	elseif scrpt_config["in_dir"] == "out_absolute" 
-		sender_equation = raw"$u_S(\theta,a) = -|a - \theta - b|$ \\ "
-		receiver_equation = raw"$u_R(\theta,a) = -|a - \theta|$ \\ "
-	elseif scrpt_config["in_dir"] == "out_less_messages"
-		sender_equation = raw"$|M| = 3$ \\ "
-		receiver_equation = raw"$|M| = 3$ \\ "
-	elseif scrpt_config["in_dir"] == "out_more_messages"
-		sender_equation = raw"$|M| = 9$ \\ "
-		receiver_equation = raw"$|M| = 9$ \\ "
-	elseif scrpt_config["in_dir"] == "out_less_actions"
-		sender_equation = raw"$|A| = 9$ \\ "
-		receiver_equation = raw"$|A| = 9$ \\ "
-	elseif scrpt_config["in_dir"] == "out_more_actions"
-		sender_equation = raw"$|A| = 21$ \\ "
-		receiver_equation = raw"$|A| = 21$ \\ "
-	end
-	return (sender_equation, receiver_equation)[agent_idx]
+# regime identifier for the robustness figures, shown as the sender panel's ylabel; empty for
+# the baseline. fourth/absolute collapse u_S/u_R into a single u_i(.) form
+function get_title_equation()
+	labels = Dict(
+		"out_3states"       => raw"$|\Theta| = 3$",
+		"out_9states"       => raw"$|\Theta| = 9$",
+		"out_less_messages" => raw"$|M| = 3$",
+		"out_more_messages" => raw"$|M| = 9$",
+		"out_less_actions"  => raw"$|A| = 9$",
+		"out_more_actions"  => raw"$|A| = 21$",
+		"out_increasing"    => raw"$p(\theta_k)=2k / (n(n+1))$",
+		"out_decreasing"    => raw"$p(\theta_k)=2 (n-k+1) / (n(n+1))$",
+		"out_fourthpower"   => raw"$u_i(\theta,a) = -( \, \cdot \, )^4$",
+		"out_absolute"      => raw"$u_i(\theta,a) = -| \, \cdot \, |$",
+	)
+	return get(labels, script_config["in_dir"], "")
 end
