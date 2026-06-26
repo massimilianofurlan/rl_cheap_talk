@@ -1,13 +1,8 @@
-# This script runs a batch of N simulations for different levels of bias in [0.0,0.5]
-# over a grid of reinforcement learning hyperparameter (learning rate and exploration decay rate)
-# Usage:
-# 1) configure the range of hyperparameters by editing scripts/2_config.toml 
-# 2) navigate back to the project directory 'rl_cheap_talk' 
-# 3) run 'julia --threads NUM_THREADS scripts/script2.jl -c CONFIGSECTION -o -OUT_DIR
-#    replace NUM_THREADS with the desired number of threads 
-#    replace CONFIGSECTION with desired config section of config.toml (project directory)
-#    replace OUT_DIR with the desired output dir
-# Run 'julia scripts/script2.jl --help' to se all the other options
+# runs N simulations for each bias in [0.0,0.5] over the (alpha, lambda) grid (learning rate
+# and exploration decay), defined in grid_config.jl. used only for the paper's grid figures.
+# usage (from 'rl_cheap_talk'):
+#   julia --threads NUM_THREADS scripts/run_grid.jl -c CONFIGSECTION -o OUT_DIR
+# CONFIGSECTION is a section of config.toml; run with --help for all options
 
 using TOML
 using ArgParse
@@ -87,14 +82,8 @@ const k = config["factor"]
 const out_dir = config["out_dir"]
 const configsection = config["config"]
 
-# grid config
-const min_alpha = 0.025
-const n_alpha = 5
-const min_lambda = 0.00002
-const n_lambda = 5
-
-const set_alpha = [min_alpha*2^(i-1) for i in 1:n_alpha]
-const set_lambda = [min_lambda/2^(i-1) for i in 1:n_lambda]
+# (alpha, lambda) grid: set_alpha / set_lambda
+include(joinpath(pwd(), "scripts/grid_config.jl"))
 
 function modify_config_section(new_values)
     # modify config section with new values
