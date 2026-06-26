@@ -13,13 +13,13 @@ lw_value = "1.8pt"             # benchmark + grey equilibria lines (paper: 2.5pt
 lw_modal = "1pt"               # modal outcome (blue) line (paper: 1.3pt)
 jump_value = "jump mark left"  # step direction of value lines (paper: jump mark right)
 
-function init_tikz_axis(;title="", xlabel="", ylabel="", ylabel_style="rotate=-90", y_tick_label_style="{/pgf/number format/fixed, /pgf/number format/precision=4}", additional="", ymin=0, ymax=1, width=0.35*ratio, height=0.35)
+function init_tikz_axis(;title="", xlabel="", ylabel="", ylabel_style="rotate=-90", y_tick_label_style="{/pgf/number format/fixed, /pgf/number format/precision=4}", additional="", xmin=-0.0025, xmax=0.5025, ymin=0, ymax=1, width=0.35*ratio, height=0.35)
 	pl = @pgf Axis(
 	    {	#
 	    	title = title,
 	    	xlabel = xlabel, ylabel = ylabel,
 	    	xtick = 0:0.1:0.5, #ytick = "",
-	        xmin = -0.0025, xmax = 0.5025,
+	        xmin = xmin, xmax = xmax,
 	        ymin = ymin, ymax = ymax, 
 	        #
 			y_tick_label_style = y_tick_label_style,
@@ -92,8 +92,10 @@ function plot_dist(data; legend = "", title = "", xlabel = raw"$b$", ylabel = ""
 						ymax = maximum(quantile_(data, 0.95, dims = 1)), 
 						width = 0.35*ratio, height = 0.35,
 						n_steps = 65, legend_pos = "", additional = "")
+	# x-axis margin = half the bias step, so heatmap edge cells fit inside the axis box
+	xpad = 0.5 / (size(data, 2) - 1) / 2
 	# initialize tikz plot
-	pl = init_tikz_axis(title = title, xlabel = xlabel, ylabel = ylabel, ylabel_style = ylabel_style, y_tick_label_style = y_tick_label_style, additional = additional, ymin = ymin, ymax = ymax, width = width, height = height)
+	pl = init_tikz_axis(title = title, xlabel = xlabel, ylabel = ylabel, ylabel_style = ylabel_style, y_tick_label_style = y_tick_label_style, additional = additional, xmin = -xpad, xmax = 0.5 + xpad, ymin = ymin, ymax = ymax, width = width, height = height)
 	pl = plot_dist!(pl, data, ymin = ymin, ymax = ymax, color = color, n_steps = n_steps, legend = legend, legend_pos = legend_pos)
 	return pl
 end
@@ -131,7 +133,7 @@ function plot_dist!(pl, data; ymin = minimum(quantile_(data, 0.05, dims = 1)),
 	return pl
 end
 
-function plot_val!(pl, data; legend = "", color = "red", style = "solid", opacity = 1.0, blend_mode="multiply", jump_mark = jump_value)
+function plot_val!(pl, data; legend = "", color = "red", style = "solid", opacity = 1.0, blend_mode="multiply", jump_mark = jump_value, legend_pos = "out_bottom")
 	# plot value on top of existing plot. jump_mark holds the value to the right of each bias
 	# ("jump mark right") or to the left ("jump mark left", used for the modal-outcome lines)
 	val = getindex.(data,1)
@@ -139,7 +141,7 @@ function plot_val!(pl, data; legend = "", color = "red", style = "solid", opacit
     @pgf pl_val = Plot({axis_on_top, color = color, style = style, opacity = opacity, blend_mode=blend_mode}, Table(x = set_biases_, y = val));
     push!(pl_val.options, jump_mark)
 	push!(pl, pl_val);
-    !isempty(legend) && add_legend!(pl, legend, "out_bottom")
+    !isempty(legend) && add_legend!(pl, legend, legend_pos)
 	return pl
 end
 

@@ -176,12 +176,14 @@ group_pl_expected_reward_r = plot_dist(expected_reward_r; title = "ex-ante expec
 														  color = "blue",
 														  ymin=ymin, ymax=ymax, n_steps = 65, height = main_height);
 group_pl_expected_reward_r = plot_interpolated_val!(group_pl_expected_reward_r, expected_reward_r_best; legend = "optimal equilibrium", color = "red", style = "solid, line width=$(lw_value)", opacity = 0.4, ymin=ymin, ymax=ymax, n_steps=65);
-group_pl_expected_reward_r = plot_val!(group_pl_expected_reward_r, babbling_reward_r; legend = "babbling equilibrium", color = "darkgray", style = "dotted");
+# legend_pos = "" adds the entry without the out_bottom legend style, so the captured
+# legend (legend to name) does not reference the xlabel node
+group_pl_expected_reward_r = plot_val!(group_pl_expected_reward_r, babbling_reward_r; legend = "babbling equilibrium", color = "darkgray", style = "dotted", legend_pos = "");
 group_pl_expected_reward_r = plot_eq_bound!(group_pl_expected_reward_r,posterior_mean_variance_best);
 
-# EXPECTED REWARDS (GROUP) — legend captured by name, rendered via \pgfplotslegendfromname
-# override the at={(xlabel.south)} from plot_val!'s out_bottom legend: rendered on its own
-# there is no xlabel node
+# EXPECTED REWARDS (GROUP) — legend captured by name, rendered via \pgfplotslegendfromname.
+# at={(0.98,0.98)} positions it; the babbling line uses legend_pos="" so the captured legend
+# carries no reference to the xlabel node (which does not exist when it renders on its own)
 push!(group_pl_expected_reward_r.options, "legend style={legend columns = -1, legend to name={legend_expected_rewards}, column sep = 3.5pt, at={(0.98,0.98)}, anchor={north east}}")
 pl_expected_rewards = @pgf GroupPlot({group_style={group_size="2 by 1", "horizontal sep" = expected_hsep },}, group_pl_expected_reward_s, group_pl_expected_reward_r);
 
