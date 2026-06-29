@@ -41,9 +41,9 @@ function parse_commandline()
             default = 0.01f0
         "--loss", "-l"
             arg_type = String
-            help = "utility functions: \"quadratic\", \"fourth\" or \"absolute\""
+            help = "utility functions: \"quadratic\", \"fourth\", \"power32\" or \"absolute\""
             default = "quadratic"
-            range_tester = x -> x in ["quadratic", "fourth", "absolute"]
+            range_tester = x -> x in ["quadratic", "fourth", "absolute", "power32"]
         "--distribution", "-d"
             arg_type = String
             help = "distribution over states: \"uniform\", \"increasing\", \"decreasing\", \"vshaped\", \"binomial\""

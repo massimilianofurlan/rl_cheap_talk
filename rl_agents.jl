@@ -114,6 +114,8 @@ function reward(a::Int, t::Int, b::Float32, loss_type::String)
         return -abs(A[a] - T[t] - b)
     elseif loss_type == "fourth"
         return -(A[a] - T[t] - b)^4
+    elseif loss_type == "power32"
+        return -abs(A[a] - T[t] - b)^1.5f0
     else
         error("Invalid loss type specified")
     end
