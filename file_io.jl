@@ -232,6 +232,7 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     end
 
     open("$temp_dir/visit_counts.txt", "w") do io
+	    write(io, "Average number of Q-cell exploration visits by Nash equilibrium. Messages sorted by posterior mean (off-path messages last).")
         for nash_idx in 1:set_nash["n_nash"]
             isempty(get(statistics, nash_idx, Dict())) && continue
             write(io, "\n\nEquilibrium $nash_idx (freq=$(round(statistics[nash_idx]["freq"], digits=3))):")
