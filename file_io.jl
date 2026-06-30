@@ -237,9 +237,13 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
             isempty(get(statistics, nash_idx, Dict())) && continue
             write(io, "\n\nEquilibrium $nash_idx (freq=$(round(statistics[nash_idx]["freq"], digits=3))):")
             write(io, "\n\nN_s[θ,m]: ")
-            show(io, "text/plain", round.(Int, statistics[nash_idx]["avg_N_s"]))
+            for i in axes(statistics[nash_idx]["avg_N_s"], 1)
+                write(io, "\n  " * join(lpad.([statistics[nash_idx]["greedy_s"][i,j] ? "[$(round(Int, statistics[nash_idx]["avg_N_s"][i,j]))]" : " $(round(Int, statistics[nash_idx]["avg_N_s"][i,j])) " for j in axes(statistics[nash_idx]["avg_N_s"], 2)], 9)))
+            end
             write(io, "\n\nN_r[m,a]: ")
-            show(io, "text/plain", round.(Int, statistics[nash_idx]["avg_N_r"]))
+            for i in axes(statistics[nash_idx]["avg_N_r"], 1)
+                write(io, "\n  " * join(lpad.([statistics[nash_idx]["greedy_r"][i,j] ? "[$(round(Int, statistics[nash_idx]["avg_N_r"][i,j]))]" : " $(round(Int, statistics[nash_idx]["avg_N_r"][i,j])) " for j in axes(statistics[nash_idx]["avg_N_r"], 2)], 9)))
+            end
 	end
     end
     quiet || run(`cat $temp_dir/visit_counts.txt`)
