@@ -74,6 +74,8 @@ function compute_group_statistics(results, group)
     is_greedy_r = haskey(results, "is_greedy_r") ? results["is_greedy_r"][group] : falses(n_group)
     margin_error_s = results["margin_error_s"][:,group]
     margin_error_r = results["margin_error_r"][:,group]
+    N_s = results["N_s"][:,:,group]
+    N_r = results["N_r"][:,:,group]
 
     # average episodes played, frequence in group
     freq = count(group) / n_simulations
@@ -95,6 +97,8 @@ function compute_group_statistics(results, group)
     # average margin estimation error
     avg_margin_error_s = dropdims(mean(margin_error_s, dims=2), dims=2)
     avg_margin_error_r = dropdims(mean(margin_error_r, dims=2), dims=2)
+    avg_N_s = dropdims(mean(N_s, dims=3), dims=3)
+    avg_N_r = dropdims(mean(N_r, dims=3), dims=3)
 
     # epsilon-nash 
     max_absolute_error = max.(absolute_error_s, absolute_error_r)                  # smallest ϵ that makes each simulation an ϵ-approximate equilibrium
@@ -115,13 +119,13 @@ function compute_group_statistics(results, group)
 
 
     statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
-                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, 
-                  freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r)
+                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages,
+                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing,
+                  freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r, avg_N_s, avg_N_r)
     var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
-                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, 
-                  freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r)
+                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages,
+                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing,
+                  freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r, avg_N_s, avg_N_r)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
 end

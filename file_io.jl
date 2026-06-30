@@ -231,6 +231,18 @@ function show_experiment_outcomes(set_nash, best_nash, statistics)
     quiet || run(`cat $temp_dir/class_outcomes.txt`)
     end
 
+    open("$temp_dir/visit_counts.txt", "w") do io
+        for nash_idx in 1:set_nash["n_nash"]
+            isempty(get(statistics, nash_idx, Dict())) && continue
+            write(io, "\n\nEquilibrium $nash_idx (freq=$(round(statistics[nash_idx]["freq"], digits=3))):")
+            write(io, "\n\nN_s[θ,m]: ")
+            show(io, "text/plain", round.(Int, statistics[nash_idx]["avg_N_s"]))
+            write(io, "\n\nN_r[m,a]: ")
+            show(io, "text/plain", round.(Int, statistics[nash_idx]["avg_N_r"]))
+	end
+    end
+    quiet || run(`cat $temp_dir/visit_counts.txt`)
+
     open("$temp_dir/set_nash.txt", "w") do io
         write(io, "List of non-redundant monotone partitional equilibria (Frug, 2016) ordered from most informative to least informative.")
         for nash_idx in 1:set_nash["n_nash"]

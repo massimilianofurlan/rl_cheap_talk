@@ -2,22 +2,26 @@
 # play and learn: training 
 
 function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::MersenneTwister=MersenneTwister())
-    # main function, runs simulation and returns Q matrices of the agents 
+    # main function, runs simulation and returns Q matrices of the agents
     policy_s, policy_r = get_policy(Q_s, expl0_s), get_policy(Q_r, expl0_r) # initialize policies
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
     n_r, n_s = 0, 0                                                         # n_s, s_r count episodes w/ similar policy
+    N_s = zeros(Int32, n_states, n_messages)                                # exploration visits sender: N_s[t,m]
+    N_r = zeros(Int32, n_messages, n_actions)                               # exploration visits receiver: N_r[m,a]
     for ep in 1:n_max_episodes
         t = sample_(rng, p_t)                                               # draw state of the world from prior
         m = get_action(policy_s, Q_s, expl_s[ep], t, rng)                   # update policy and get action of sender
         a = get_action(policy_r, Q_r, expl_r[ep], m, rng)                   # update policy and get action of receiver
+        N_s[t, m] += maximum_(view(Q_s, t, :)) - Q_s[t, m] > 1f-6           # increment sender exploration visits
+        N_r[m, a] += maximum_(view(Q_r, m, :)) - Q_r[m, a] > 1f-6           # increment receiver exploration visits
         reward_s, reward_r = reward_matrix_s[a,t], reward_matrix_r[a,t]     # get utilities
         Q_s = update_q(Q_s, t, m, reward_s, alpha_s)                        # update Q-matrix of sender
         Q_r = update_q(Q_r, m, a, reward_r, alpha_r)                        # update Q-matrix of receiver
         n_s = is_approx_unchanged(policy_s, policy_s_, n_s)                 # if policy approx unchanged increment else reset
         n_r = is_approx_unchanged(policy_r, policy_r_, n_r)                 # if policy approx unchanged increment else reset
-        min(n_s, n_r) == convergence_threshold && return Q_s, Q_r, ep       # break if policies have converged   
+        min(n_s, n_r) == convergence_threshold && return Q_s, Q_r, ep, N_s, N_r  # break if policies have converged
     end
-    return Q_s, Q_r, n_max_episodes
+    return Q_s, Q_r, n_max_episodes, N_s, N_r
 end
 
 function is_approx_unchanged(policy::Array{Float32,2}, policy_::Array{Float32,2}, n::Int64)

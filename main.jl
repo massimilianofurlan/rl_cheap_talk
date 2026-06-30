@@ -106,6 +106,8 @@ function main()
     Q_s = Array{Float32,3}(undef, n_states, n_messages, n_simulations);
     Q_r = Array{Float32,3}(undef, n_messages, n_actions, n_simulations);
     n_episodes = Array{Int64,1}(undef, n_simulations);
+    N_s = zeros(Int32, n_states, n_messages, n_simulations);
+    N_r = zeros(Int32, n_messages, n_actions, n_simulations);
 
     rngs = [MersenneTwister(z) for z in 1:n_simulations]
     progress = Progress(n_simulations, color=:white, showspeed=true)
@@ -116,19 +118,19 @@ function main()
         # initialize Q-matrices
         Q0_s, Q0_r = init_agents(rng)
         # run simulation
-        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z] = run_simulation(Q0_s, Q0_r, rng=rng);
+        Q_s[:,:,z], Q_r[:,:,z], n_episodes[z], N_s[:,:,z], N_r[:,:,z] = run_simulation(Q0_s, Q0_r, rng=rng);
         quiet || next!(progress)
     end
 
     println(stdout, "analyzing outcomes...") 
-    @time results = convergence_analysis(Q_s, Q_r, n_episodes); 
+    @time results = convergence_analysis(Q_s, Q_r, n_episodes, N_s, N_r);
 
     println(stdout, "computing statistics...") 
     @time statistics = compute_statistics(set_nash, results)
 
     show_experiment_outcomes(set_nash, best_nash, statistics)
 
-    println(save_ ? stdout : devnull, "saving data to file...") 
+    println(save_ ? stdout : devnull, "saving data to file...")
     @time save__(set_nash, best_nash, results, statistics)
 end
 

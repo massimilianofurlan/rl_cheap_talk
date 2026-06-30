@@ -1,10 +1,10 @@
 
 # convergence analysis
-function convergence_analysis(Q_s, Q_r, n_episodes)
-    # analyze experiments at convergence 
+function convergence_analysis(Q_s, Q_r, n_episodes, N_s, N_r)
+    # analyze experiments at convergence
 
-    # no analysis in raw mode 
-    dict_input = Dict(name => value for (name, value) in zip(@names(Q_s, Q_r, n_episodes), (Q_s, Q_r, n_episodes)))
+    # no analysis in raw mode
+    dict_input = Dict(name => value for (name, value) in zip(@names(Q_s, Q_r, n_episodes, N_s, N_r), (Q_s, Q_r, n_episodes, N_s, N_r)))
     raw && return dict_input
 
     # preallocate arrays
@@ -42,12 +42,14 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         # get policies at convergence
         policy_s[:,:,z] = get_policy(Q_s[:,:,z], 1f-30)
         policy_r[:,:,z] = get_policy(Q_r[:,:,z], 1f-30)
-        # order Q-matrices and policies
+        # order Q-matrices, policies, and exploration visits
         order = get_order(policy_s[:,:,z])
         Q_s[:,:,z] = Q_s[:,order,z]
         Q_r[:,:,z] = Q_r[order,:,z]
         policy_s[:,:,z] = policy_s[:,order,z]
         policy_r[:,:,z] = policy_r[order,:,z]
+        N_s[:,:,z] = N_s[:,order,z]
+        N_r[:,:,z] = N_r[order,:,z]
         # local aliases avoid repeated slicing allocations
         Q_s_, Q_r_ = Q_s[:,:,z], Q_r[:,:,z]
         policy_s_, policy_r_ = policy_s[:,:,z], policy_r[:,:,z]
