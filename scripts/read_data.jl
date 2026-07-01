@@ -76,7 +76,6 @@ function extract_data(config, results, extracted_data)
     max_mass_on_suboptim_s = Array{Float32,1}(undef, n_converged)
     max_mass_on_suboptim_r = Array{Float32,1}(undef, n_converged)
     is_partitional = Array{Bool,1}(undef, n_converged)
-    n_effective_messages = Array{Int64,1}(undef, n_converged)
     max_max_mass_on_suboptim = Array{Float32,1}(undef, n_converged)
 	# compute metrics of interest for converged sessions
 	Threads.@threads for z in 1:n_converged
@@ -118,8 +117,6 @@ function extract_data(config, results, extracted_data)
         max_max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
         # check if policy is partitional
         is_partitional[z] = ispartitional(policy_s_)
-        # count number of messages that have no synonyms
-        n_effective_messages[z] = count(get_effective_messages(policy_s_[:,.!off_path_messages]))
     end
 
 	i = findfirst(set_biases .== bias)
@@ -139,7 +136,6 @@ function extract_data(config, results, extracted_data)
 	extracted_data["max_mass_on_suboptim_r"][i] = max_mass_on_suboptim_r
 	extracted_data["max_max_mass_on_suboptim"][i] = max_max_mass_on_suboptim
 	extracted_data["is_partitional"][i] = is_partitional
-	extracted_data["n_effective_messages"][i] = n_effective_messages
 	extracted_data["babbling_reward_s"][i] = babbling_reward_s
 	extracted_data["babbling_reward_r"][i] = babbling_reward_r
 end

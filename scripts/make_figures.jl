@@ -57,7 +57,6 @@ max_mass_on_suboptim_s = cat(extracted_data["max_mass_on_suboptim_s"]...,dims=2)
 max_mass_on_suboptim_r = cat(extracted_data["max_mass_on_suboptim_r"]...,dims=2);
 max_max_mass_on_suboptim = cat(extracted_data["max_max_mass_on_suboptim"]...,dims=2);
 is_partitional = cat(extracted_data["is_partitional"]...,dims=2);
-n_effective_messages = cat(extracted_data["n_effective_messages"]...,dims=2);
 
 babbling_reward_s = extracted_data["babbling_reward_s"];
 babbling_reward_r = extracted_data["babbling_reward_r"];

@@ -66,10 +66,8 @@ function compute_group_statistics(results, group)
     max_mass_on_suboptim_s = results["max_mass_on_suboptim_s"][group]
     max_mass_on_suboptim_r = results["max_mass_on_suboptim_r"][group]
     max_mass_on_suboptim = results["max_mass_on_suboptim"][group]
-    n_effective_messages = results["n_effective_messages"][group]
     is_partitional = results["is_partitional"][group]
     is_nash = results["is_nash"][group]
-    is_absorbing = results["is_absorbing"][group]
     is_greedy_s = haskey(results, "is_greedy_s") ? results["is_greedy_s"][group] : falses(n_group)
     is_greedy_r = haskey(results, "is_greedy_r") ? results["is_greedy_r"][group] : falses(n_group)
     margin_error_s = results["margin_error_s"][:,group]
@@ -88,9 +86,7 @@ function compute_group_statistics(results, group)
     avg_posterior_mean_variance = mean_std(posterior_mean_variance)
     # on-path and off-path messages
     avg_n_on_path_messages = mean_std(n_messages .- n_off_path_messages)
-    # number of messages with no sysnonims
-    avg_n_effective_messages = mean_std(n_effective_messages)
-    # freq partitional policy 
+    # freq partitional policy
     freq_partitional = mean_std(is_partitional)
     # average margin estimation error
     avg_margin_error_s = dropdims(mean(margin_error_s, dims=2), dims=2)
@@ -107,20 +103,18 @@ function compute_group_statistics(results, group)
     quant_max_mass_on_suboptim = quantile(max_mass_on_suboptim, [0.25,0.5,0.75])
     # frequence (γ < 1f-2)-nash 
     freq_nash = count(is_nash) / n_group
-    # frequence is fixed point
-    freq_is_absorbing = count(is_absorbing) / n_group
     # freq policies that are greedy wrt converged Q-values
     freq_is_greedy_s = count(is_greedy_s) / n_group
     freq_is_greedy_r = count(is_greedy_r) / n_group
 
 
     statistics = (group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
-                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, 
+                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r, avg_posterior_mean_variance, avg_n_on_path_messages,
+                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional,
                   freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r)
     var_names = @names(group, freq, avg_n_episodes, avg_expected_reward_s, avg_expected_reward_r, avg_absolute_error_s, avg_absolute_error_r,
-                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_posterior_mean_variance, avg_n_on_path_messages, avg_n_effective_messages, 
-                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional, freq_is_absorbing, 
+                  avg_max_mass_on_suboptim_s, avg_max_mass_on_suboptim_r,  avg_posterior_mean_variance, avg_n_on_path_messages,
+                  max_absolute_error, quant_max_absolute_error, max_mass_on_suboptim, quant_max_mass_on_suboptim, freq_nash, freq_partitional,
                   freq_is_greedy_s, freq_is_greedy_r, avg_margin_error_s, avg_margin_error_r)
     dict_statistics = Dict(name => value for (name, value) in zip(var_names, statistics))
     return dict_statistics
