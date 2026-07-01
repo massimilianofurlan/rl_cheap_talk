@@ -154,7 +154,7 @@ function plot_interpolated_val!(pl, data; legend = "", color = "red", style = "s
 	# interpolate values to distribution grid 
 	step_size = (ymax - ymin) / (n_steps-4)
 	points = range(ymin-3*step_size/2,ymax+3*step_size/2,n_steps)
-	val = points[map(x->findfirst(points.>=x),val)] .- step_size/2
+    val = map(x -> (i = findfirst(points .>= x); i === nothing ? x : points[i] - step_size/2), val)
 	# plot
     @pgf pl_val = Plot({axis_on_top, color = color, style = style, opacity = opacity, jump_mark_right, blend_mode=blend_mode}, Table(x = set_biases_, y = val));
 	push!(pl, pl_val);

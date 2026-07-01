@@ -141,10 +141,6 @@ pl_n_episodes = plot_eq_bound!(pl_n_episodes,posterior_mean_variance_best);
 
 ####  DISTRIBUTION  #####
 #########################
-# note that distributions are fitted on a grid of n_steps intervals
-# overlaying a benchmark value to the grid without snapping values to the grid might be misleading (identical y-values are not aligned)
-# for this reason, best_posterior_mean_variance and best_expected_reward_r are snapped to the grid
-# best_expected_reward_s is not snapped to the grid as it looks fine (and actually better, because is curved)
 
 # POSTERIOR MEAN VARIANCE
 pl_posterior_mean_variance = plot_dist(posterior_mean_variance; title = "normalised posterior mean variance", 
