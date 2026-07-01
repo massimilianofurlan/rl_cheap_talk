@@ -60,7 +60,8 @@ function extract_data(config, results, extracted_data)
 	# compute is_converged bool and frequence
     is_converged = n_episodes .< n_max_episodes
     n_converged = count(is_converged)
-    n_converged == n_simulations || exit() # failsafe
+    # failsafe: downstream code assumes every session converged
+    n_converged == n_simulations || error("not all sessions converged at bias $bias: $n_converged/$n_simulations converged.")
 
 	# preallocate array
     policy_s = Array{Float32,3}(undef, n_states, n_messages, n_converged)
