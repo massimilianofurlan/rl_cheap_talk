@@ -267,7 +267,7 @@ function save__(set_nash::Dict, best_nash::Dict, results::Dict, statistics::Dict
     save("$temp_dir/set_nash.jld2", set_nash)
     save("$temp_dir/best_nash.jld2", best_nash)
     save("$temp_dir/results.jld2", results)    
-    !raw && save("$temp_dir/statistics.jld2", statistics)
+    !raw && save("$temp_dir/statistics.jld2", "statistics", statistics)
    
     out_dir = mkpath(joinpath(output_dir,hyperparameters_key,game_key))
     
