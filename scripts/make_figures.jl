@@ -25,6 +25,7 @@ function make_figures(data_dir; step_bias = 0.01f0,
 						main_height = 0.35, error_height = 0.35 * ratio^-1,
 						cmp_panel = raw"0.25\linewidth", cmp_gap = "50pt",
 						cmp_vsep = "16pt", cmp_tickfont = raw"\normalsize",
+						policy_panel = raw"0.25\linewidth",
 						expected_hsep = "60pt",
 						save_dir = joinpath(dirname(data_dir), "tikz"),
 						pdf_dir = joinpath(dirname(data_dir), "pdf"),
@@ -433,8 +434,8 @@ bias_idxs = trunc.(Int,[1 + (n_biases - 1) / 20 * (2^i - 1) for i in 0:4])
 # LEARNED POLICIES (modal converged policy at sampled biases)
 group_policies_s_sample, group_policies_r_sample = [], []
 for bias_idx in bias_idxs
-	hm_modal_policy_s = plot_policy(modal_policy_s[:,:,bias_idx], raw"$\theta$", bias_idx == 1 ? raw"$m$" : "", 0:0.5:1, bias_idx == 1 ? (1:n_messages) : "", (n_states-1)/2, 1, string(raw"$b=",set_biases[bias_idx],raw"$"));
-	hm_modal_policy_r = plot_policy(modal_policy_r[:,:,bias_idx], raw"$m$",  bias_idx == 1 ? raw"$a$" : "", 1:n_messages, bias_idx == 1 ? (0:0.25:1) : "", 1, (n_actions-1)/4, "");
+	hm_modal_policy_s = plot_policy(modal_policy_s[:,:,bias_idx], raw"$\theta$", bias_idx == 1 ? raw"$m$" : "", 0:0.5:1, bias_idx == 1 ? (1:n_messages) : "", (n_states-1)/2, 1, string(raw"$b=",set_biases[bias_idx],raw"$"); width = policy_panel, height = policy_panel);
+	hm_modal_policy_r = plot_policy(modal_policy_r[:,:,bias_idx], raw"$m$",  bias_idx == 1 ? raw"$a$" : "", 1:n_messages, bias_idx == 1 ? (0:0.25:1) : "", 1, (n_actions-1)/4, ""; width = policy_panel, height = policy_panel);
 	n_on_path_messages_modal = findlast(sum(modal_policy_s[:,:,bias_idx], dims=1) .> 0.01)[2];
 	@pgf push!(hm_modal_policy_r,VLine({loosely_dashed, black}, n_on_path_messages_modal+0.5));
 	@pgf push!(hm_modal_policy_s,HLine({loosely_dashed, black}, n_messages-n_on_path_messages_modal+0.5));

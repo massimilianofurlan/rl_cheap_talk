@@ -23,6 +23,12 @@ plot_unit = "cm"
 plot_unit_scale = 10
 plot_scale_only_axis = true
 
+# manuscript \linewidth = \textwidth = 6.5in = 16.51cm (11pt article, 1in margins, letterpaper).
+# the policy_profiles_* figures are the only ones sized as fractions of \linewidth (plot_policy
+# builds its own axis and ignores plot_unit), so pgfsave's standalone document renders them at
+# the standalone \linewidth instead of the manuscript's. pin those fractions to absolute cm.
+linewidth_cm = 16.51
+
 # line styling for the paper figures (make_figures uses lighter defaults)
 lw_value = "2.5pt"             # benchmark + grey equilibria lines
 lw_modal = "1.3pt"             # modal outcome (blue) line
@@ -205,7 +211,8 @@ println("\n[paper figures] baseline (out_basecase)")
 make_figures(data_subdir(joinpath(ROOT, "out_basecase"));
 	step_bias = STEP_BIAS, main_height = H_MAIN, error_height = H_ERROR, expected_hsep = "72pt",
 	# tighter layout for policy_profiles_learned_vs_equilibria
-	cmp_panel = raw"0.20\linewidth", cmp_gap = "50pt", cmp_vsep = "8pt", cmp_tickfont = raw"\scriptsize",
+	cmp_panel = "$(round(0.20 * linewidth_cm, digits=4))cm", cmp_gap = "50pt", cmp_vsep = "8pt", cmp_tickfont = raw"\scriptsize",
+	policy_panel = "$(round(0.25 * linewidth_cm, digits=4))cm",
 	save_dir = FIG_DIR, pdf_dir = PDF_DIR,
 	names = Dict(
 		"expected_rewards"                      => "expected_rewards",
