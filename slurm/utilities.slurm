@@ -10,6 +10,6 @@ module purge
 module load Julia/1.9.0-linux-x86_64
 
 srun julia --threads 48 --check-bounds no scripts/run_experiment.jl -c basecase -o out_fourthpower -n 6 -l fourth -N 1000 --step_bias=0.005
-srun julia --threads 48 --check-bounds no scripts/run_experiment.jl -c basecase -o out_absolute -n 6 -l absolute -N 1000 --step_bias=0.005
+srun julia --threads 48 --check-bounds no scripts/run_experiment.jl -c basecase -o out_power32 -n 6 -l power32 -N 1000 --step_bias=0.005
 
 

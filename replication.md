@@ -82,14 +82,14 @@ To run the simulations navigate to the project directory and run
 
 ```
 julia --threads=auto --check-bounds=no scripts/run_experiment.jl -c=basecase -o=out_fourthpower -n=6 -l fourth -N=1000 --step_bias=0.005
-julia --threads=auto --check-bounds=no scripts/run_experiment.jl -c=basecase -o=out_absolute -n=6 -l absolute -N=1000 --step_bias=0.005
+julia --threads=auto --check-bounds=no scripts/run_experiment.jl -c=basecase -o=out_power32 -n=6 -l power32 -N=1000 --step_bias=0.005
 ```
 
 To generate the figures run
 
 ```
 julia --threads=auto scripts/make_figures.jl -i=out_fourthpower --step_bias=0.005
-julia --threads=auto scripts/make_figures.jl -i=out_absolute --step_bias=0.005
+julia --threads=auto scripts/make_figures.jl -i=out_power32 --step_bias=0.005
 ```
 
 

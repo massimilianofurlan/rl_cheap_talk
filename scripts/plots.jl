@@ -237,7 +237,7 @@ function get_title_equation()
 		"out_increasing"    => raw"$p(\theta_k)=2k / (n(n+1))$",
 		"out_decreasing"    => raw"$p(\theta_k)=2 (n-k+1) / (n(n+1))$",
 		"out_fourthpower"   => raw"$u_i(\theta,a) = -( \, \cdot \, )^4$",
-		"out_absolute"      => raw"$u_i(\theta,a) = -| \, \cdot \, |$",
+		"out_power32"       => raw"$u_i(\theta,a) = -| \, \cdot \, |^{3/2}$",
 	)
 	return get(labels, script_config["in_dir"], "")
 end

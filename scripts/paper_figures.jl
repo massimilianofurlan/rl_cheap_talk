@@ -223,7 +223,7 @@ robustness = [
 	("out_more_messages", "expected_rewards_9messages"),
 	("out_less_actions",  "expected_rewards_9actions"),
 	("out_more_actions",  "expected_rewards_21actions"),
-	("out_absolute",      "expected_rewards_absolute"),
+	("out_power32",       "expected_rewards_power32"),
 	("out_fourthpower",   "expected_rewards_fourth"),
 	("out_increasing",    "expected_rewards_increasing"),
 	("out_decreasing",    "expected_rewards_decreasing"),
