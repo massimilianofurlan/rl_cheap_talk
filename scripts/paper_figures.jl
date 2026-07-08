@@ -220,6 +220,7 @@ make_figures(data_subdir(joinpath(ROOT, "out_basecase"));
 		"optimization_errors"                   => "optimization_errors",
 		"policy_profiles_learned_sample"        => "policy_profiles_learned_sample",
 		"policy_profiles_learned_vs_equilibria" => "policy_profiles_learned_vs_equilibria",
+		"state_action_distribution_learned_vs_equilibria" => "state_action_distribution_learned_vs_equilibria",
 	))
 
 # ---- robustness figures: out_* directory => paper figure name ----
