@@ -32,11 +32,16 @@
 #
 # Result (n=3, |A|=5, uniform, quadratic). The babbling branch has a SINGLE bifurcation
 # in (0, 80], at lambda* = 4.2415, and it is a DOUBLE eigenvalue crossing (null dim 2,
-# eigenvalues real to 1e-17): the two-dimensional standard irrep of S_3. The reduced
-# scalar equation reproduces it to 6e-6, and lambda* is constant across b in [0, 0.5]
-# (to ~1e-3). So all informative branches are born at one bias-independent pitchfork;
-# which partition a branch limits to, and the bias at which it detaches from the
-# centroid component, are nonlinear/global facts not visible in this local spectrum.
+# eigenvalues real to 1e-17): the six-dim rho-space is three copies of the two-dimensional
+# standard irrep of S_3, so every eigenvalue is doubled. The reduced scalar equation
+# reproduces lambda* to 6e-6, and lambda* is EXACTLY bias-independent: the relevant
+# eigenvalue sigma is constant to 10 digits across b (the ~1e-3 spread printed in section
+# (3) is float32 finite-difference noise). Mechanism: b enters M only as a rank-1 term
+# along the constant-in-type vector 1, which is a right eigenvector of M for eigenvalue 0
+# and is orthogonal (biorthogonal) to the left eigenvector of the relevant sigma, so sigma
+# is unchanged. So all informative branches are born at one bias-independent bifurcation;
+# which partition a branch limits to, and the bias at which it detaches from the centroid
+# component, are nonlinear/global facts not visible in this local spectrum.
 
 using Random
 using LinearAlgebra
