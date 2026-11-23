@@ -76,23 +76,25 @@ end
 
 function expected_update_q_s(Q_s::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
     # expected Q update of sender
-    for t in 1:n_states, m in 1:n_messages
-        reward_s = 0.0f0
+    @fastmath for t in 1:n_states, m in 1:n_messages
+        Q_s_ = Q_s[t,m]
+        cum_sum = 0.0f0
         for a in 1:n_actions
-            reward_s += policy_r[m,a] * reward_matrix_s[a,t]
+            cum_sum += policy_r[m,a] * reward_matrix_s[a,t]
         end
-        Q_s[t,m] += alpha_s * p_t[t] * policy_s[t,m] * (reward_s - Q_s[t,m])
+        cum_sum -= Q_s_
+        Q_s[t,m] += alpha_s * p_t[t] * policy_s[t,m] * cum_sum
     end
     return Q_s
 end
 
 function expected_update_q_r(Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
     # expected Q update of receiver
-    for m in 1:n_messages, a in 1:n_actions
-        q_r = Q_r[m,a]
+    @fastmath for m in 1:n_messages, a in 1:n_actions
+        Q_r_ = Q_r[m,a]
         cum_sum = 0.0f0
         for t in 1:n_states
-            cum_sum += p_t[t] * policy_s[t,m] * (reward_matrix_r[a,t] - q_r)
+            cum_sum += p_t[t] * policy_s[t,m] * (reward_matrix_r[a,t] - Q_r_)
         end
         Q_r[m,a] += alpha_r * policy_r[m,a] * cum_sum
     end
