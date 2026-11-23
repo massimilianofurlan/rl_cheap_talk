@@ -22,6 +22,10 @@ function parse_commandline()
             help = "number of simulations"
             default = 100  
             range_tester = x -> x > 0
+        "--deterministic"
+            help = "run the deterministic simulation"
+            dest_name = "det"
+            action = :store_true
         "--n_states", "-n"
             arg_type = Int64
             help = "number of states of the world"
@@ -75,6 +79,7 @@ const loss = config["loss"]
 const distr = config["dist"]
 const out_dir = config["out_dir"]
 const config_section = config["config"]
+const det = config["det"] ? ["--det"] : String[]
 
 for bias in set_biases
     # cycle over bias
@@ -82,7 +87,7 @@ for bias in set_biases
 	print("b = ", bias, "\t| ")
 	run(`julia --check-bounds=no --threads=$n_cpus main.jl
 	            -n=$n_states -m=$n_messages -a=$n_actions -b=$bias -N=$n_simulations -l=$loss -d=$distr 
-				-o=$out_dir -c=$config_section -r -q`
+					-o=$out_dir -c=$config_section -r -q $det`
 		)
     end_time = time()
     println(round(end_time - start_time, digits=1),"sec")
