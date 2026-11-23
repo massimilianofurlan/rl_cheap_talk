@@ -83,8 +83,8 @@ const expl_decay_r::Float32 = config["expl_decay_r"]
 const expl0_s::Float32 = config["expl0_s"]
 const expl0_r::Float32 = config["expl0_r"]
 # exploration decay
-const expl_s = [max(expl0_s * exp(-expl_decay_s*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
-const expl_r = [max(expl0_r * exp(-expl_decay_r*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
+const expl_s = [max(expl0_s * exp_(-expl_decay_s*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
+const expl_r = [max(expl0_r * exp_(-expl_decay_r*(ep-1)), 1f-30) for ep in 1:n_max_episodes]
 
 # tolerance on convergence of policies
 const rtol = 0.001f0

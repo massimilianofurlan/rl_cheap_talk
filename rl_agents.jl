@@ -73,7 +73,7 @@ function get_softmax_policy(Q::Array{Float32,2}, temp::Float32; policy::Array{Fl
         cum_sum = 0.0f0
         max_val = maximum_(view(Q,state,:))
         @fastmath for action in 1:n_actions
-            policy[state, action] = exp((Q[state,action] - max_val) / temp)
+            policy[state, action] = exp_((Q[state,action] - max_val) / temp)
             cum_sum += policy[state, action]
         end
         @fastmath for action in 1:n_actions
@@ -220,6 +220,11 @@ function maximum_(A::AbstractArray{Float32,1})
         end
     end
     return max_val
+end
+
+function exp_(x::Float32)
+    # fast exponential
+    return @inline Base.Math.exp_fast(x)
 end
 
 function sample_(rng::AbstractRNG, wv::AbstractArray{Float32,1})
