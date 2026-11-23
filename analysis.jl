@@ -84,8 +84,8 @@ function convergence_analysis(Q_s, Q_r, n_episodes)
         max_mass_on_suboptim_r[z] = maximum_(mass_on_suboptim_r[.!off_path_messages[:,z],z])
         max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
         is_nash[z] = max_mass_on_suboptim[z] < gtol
-        # check if policy is partitional
-        is_partitional[z] = ispartitional(policy_s_)
+        # check if policy is monotone partitional
+        is_partitional[z] = get_partition(policy_s_) > 0
         # check if agents have converged 
         is_converged[z] = n_episodes[z] < n_max_episodes
         # check if converged policies are greedy wrt converged Q-values
@@ -234,17 +234,14 @@ function get_mass_on_suboptim(policy::Array{Float32,2}, optimal_policy::Array{Fl
     return @fastmath sum(suboptim_bitmap .* policy, dims=2)
 end
 
-function ispartitional(policy_s::Array{Float32,2}; tol::Float32 = ptol)
-    # check if policy of the sender is partitional 
+function get_partition(policy_s::Array{Float32,2}; tol::Float32 = ptol)
+    # get the sender partition index, returns 0 if not monotone partitional
     supp_policy_s = (policy_s .> tol)
-    @fastmath for message in 1:n_messages-1
-        for message_ in message+1:n_messages
-            states = supp_policy_s[:,message] .|| supp_policy_s[:,message_]
-            flags = xor.(supp_policy_s[states,message],supp_policy_s[states,message_])
-            (all(flags) || all(.!flags)) || return false
-        end
-    end
-    return true
+    any(supp_policy_s .&& (maximum(policy_s, dims=1) .- policy_s .> tol)) && return 0
+    partition = [supp_policy_s[state,:] != supp_policy_s[state+1,:] for state in 1:n_states-1]
+    cell = cumsum([1; partition])
+    (supp_policy_s * supp_policy_s' .> 0) == (cell .== cell') || return 0
+    return 1 + sum(partition .* 2 .^ (0:n_states-2))
 end
 
 function is_greedy(Q::Array{Float32,2}, expl::Float32)

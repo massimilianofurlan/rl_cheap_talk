@@ -116,8 +116,8 @@ function extract_data(config, results, extracted_data)
     	max_mass_on_suboptim_r[z] = maximum(mass_on_suboptim_r[.!off_path_messages])
 		# check if is a nash
         max_max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
-        # check if policy is partitional
-        is_partitional[z] = ispartitional(policy_s_)
+        # check if policy is monotone partitional
+        is_partitional[z] = get_partition(policy_s_) > 0
     end
 
 	i = findfirst(set_biases .== bias)
