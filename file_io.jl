@@ -51,6 +51,9 @@ function parse_commandline()
             help = "number of simulations"
             default = 100  
             range_tester = x -> x > 0
+        "--deterministic"
+            help = "run the deterministic simulation"
+            action = :store_true
         # IO SETTINGS
         "--quiet", "-q"
             help = "flag to not print input/output to terminal"
@@ -64,7 +67,6 @@ function parse_commandline()
         "--out_dir", "-o"
             arg_type = String
             help = "output directory name"
-            default = "out"
         "--config", "-c"
             arg_type = String
             help = "config section name"
@@ -86,6 +88,10 @@ function parse_commandline()
         parsed_args["save"] = true
         parsed_args["quiet"] = true
     end
+    # default output directory for stochastic and deterministic runs
+    if parsed_args["out_dir"] == nothing
+        parsed_args["out_dir"] = parsed_args["deterministic"] ? "out_det" : "out_sto"
+    end
     return parsed_args
 end
 
@@ -104,6 +110,7 @@ function show_experiment_details()
         println(io, "\n [Q-LEARNING]")
         println(io, " n_simulations:  " , n_simulations)
         println(io, " max_episodes: \t " , n_max_episodes)
+        println(io, " deterministic:  " , deterministic)
         println(io, " conv_threshold: " , convergence_threshold)
         println(io, " rtol: \t\t ", rtol)
         println(io, " q_init: \t " , q_init)        

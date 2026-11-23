@@ -19,6 +19,7 @@ const output_dir, temp_dir = gen_dirs()
 # SETTINGS
 const quiet = config["quiet"]
 const save_ = config["save"]
+const deterministic = config["deterministic"]
 const raw = config["raw"]
 
 # redirect output to devnull if quiet mode
@@ -111,6 +112,7 @@ function main()
     progress = Progress(n_simulations, color=:white, showspeed=true)
 
     # main loop
+    run_simulation = deterministic ? run_deterministic : run_stochastic
     @time Threads.@threads for z in 1:n_simulations
         rng = rngs[z]
         # initialize Q-matrices

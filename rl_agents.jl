@@ -1,7 +1,7 @@
 
 # play and learn: training 
 
-function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::MersenneTwister=MersenneTwister())
+function run_stochastic(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::MersenneTwister=MersenneTwister())
     # main function, runs simulation and returns Q matrices of the agents 
     policy_s, policy_r = get_policy(Q_s, expl0_s), get_policy(Q_r, expl0_r) # initialize policies
     policy_s_, policy_r_ = copy(policy_s), copy(policy_r)                   # copy of agents policies to asess convergence
@@ -16,6 +16,23 @@ function run_simulation(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng::Merse
         n_s = is_approx_unchanged(policy_s, policy_s_, n_s)                 # if policy approx unchanged increment else reset
         n_r = is_approx_unchanged(policy_r, policy_r_, n_r)                 # if policy approx unchanged increment else reset
         min(n_s, n_r) == convergence_threshold && return Q_s, Q_r, ep       # break if policies have converged   
+    end
+    return Q_s, Q_r, n_max_episodes
+end
+
+function run_deterministic(Q_s::Array{Float32,2}, Q_r::Array{Float32,2}; rng=nothing)
+    # run expected updates and return Q matrices of the agents
+    policy_s, policy_r = get_policy(Q_s, expl0_s), get_policy(Q_r, expl0_r)
+    policy_s_, policy_r_ = copy(policy_s), copy(policy_r)
+    n_r, n_s = 0, 0
+    for ep in 1:n_max_episodes
+        policy_s = get_policy(Q_s, expl_s[ep], policy = policy_s)
+        policy_r = get_policy(Q_r, expl_r[ep], policy = policy_r)
+        Q_s = expected_update_q_s(Q_s, policy_s, policy_r)
+        Q_r = expected_update_q_r(Q_r, policy_s, policy_r)
+        n_s = is_approx_unchanged(policy_s, policy_s_, n_s)
+        n_r = is_approx_unchanged(policy_r, policy_r_, n_r)
+        min(n_s, n_r) == convergence_threshold && return Q_s, Q_r, ep
     end
     return Q_s, Q_r, n_max_episodes
 end
@@ -55,6 +72,31 @@ function update_q(Q::Array{Float32,2}, state::Int64, action::Int64, reward::Floa
     # value iteration:  Q(s,a) <-  (1 - alpha) * Q[state,action] + alpha * reward
     @fastmath Q[state,action] += alpha * (reward - Q[state,action])
     return Q
+end
+
+function expected_update_q_s(Q_s::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
+    # expected Q update of sender
+    for t in 1:n_states, m in 1:n_messages
+        reward_s = 0.0f0
+        for a in 1:n_actions
+            reward_s += policy_r[m,a] * reward_matrix_s[a,t]
+        end
+        Q_s[t,m] += alpha_s * p_t[t] * policy_s[t,m] * (reward_s - Q_s[t,m])
+    end
+    return Q_s
+end
+
+function expected_update_q_r(Q_r::Array{Float32,2}, policy_s::Array{Float32,2}, policy_r::Array{Float32,2})
+    # expected Q update of receiver
+    for m in 1:n_messages, a in 1:n_actions
+        q_r = Q_r[m,a]
+        cum_sum = 0.0f0
+        for t in 1:n_states
+            cum_sum += p_t[t] * policy_s[t,m] * (reward_matrix_r[a,t] - q_r)
+        end
+        Q_r[m,a] += alpha_r * policy_r[m,a] * cum_sum
+    end
+    return Q_r
 end
 
 function get_action(policy::Array{Float32,2}, Q::Array{Float32,2}, expl::Float32, state::Int64, rng::MersenneTwister)
