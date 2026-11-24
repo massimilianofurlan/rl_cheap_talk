@@ -76,6 +76,7 @@ function extract_data(config, results, extracted_data)
     n_on_path_messages = Array{Int64,1}(undef, n_converged)
     max_mass_on_suboptim_s = Array{Float32,1}(undef, n_converged)
     max_mass_on_suboptim_r = Array{Float32,1}(undef, n_converged)
+    partition = Array{Int64,1}(undef, n_converged)
     is_partitional = Array{Bool,1}(undef, n_converged)
     max_max_mass_on_suboptim = Array{Float32,1}(undef, n_converged)
 	# compute metrics of interest for converged sessions
@@ -117,7 +118,8 @@ function extract_data(config, results, extracted_data)
 		# check if is a nash
         max_max_mass_on_suboptim[z] = max(max_mass_on_suboptim_s[z], max_mass_on_suboptim_r[z])
         # check if policy is monotone partitional
-        is_partitional[z] = get_partition(policy_s_) > 0
+        partition[z] = get_partition(policy_s_)
+        is_partitional[z] = partition[z] > 0
     end
 
 	i = findfirst(set_biases .== bias)
@@ -136,6 +138,7 @@ function extract_data(config, results, extracted_data)
 	extracted_data["max_mass_on_suboptim_s"][i] = max_mass_on_suboptim_s
 	extracted_data["max_mass_on_suboptim_r"][i] = max_mass_on_suboptim_r
 	extracted_data["max_max_mass_on_suboptim"][i] = max_max_mass_on_suboptim
+	extracted_data["partition"][i] = partition
 	extracted_data["is_partitional"][i] = is_partitional
 	extracted_data["babbling_reward_s"][i] = babbling_reward_s
 	extracted_data["babbling_reward_r"][i] = babbling_reward_r

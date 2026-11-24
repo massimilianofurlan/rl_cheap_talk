@@ -1,6 +1,7 @@
 # builds the paper figures, at fixed cm sizes, into paper_figures/. reuses make_figures
-# (make_figures.jl) for the per-directory figures; make_grid_figures (below) for the
-# (alpha,lambda) grid. reads existing out_*/ data, run make_all_figures.sh if stale
+# (make_figures.jl) for the per-directory figures, make_grid_figures for the (alpha,lambda) grid,
+# and make_policy_s_dist for the baseline comparison between stochastic and deterministic dynamics.
+# reads existing out_*/ data, run make_all_figures.sh if stale
 # usage (from the rl_cheap_talk dir): julia --threads 8 scripts/paper_figures.jl [OUTDIR | -o OUTDIR]
 #   e.g. -o ../revision/figures writes the tikz into the figures directory (default: paper_figures/)
 
@@ -167,6 +168,63 @@ return nothing
 
 end  # make_grid_figures
 
+# build the sender policy distribution from the stochastic and deterministic baseline sweeps
+function make_policy_s_dist(data_sto, data_det)
+
+partition_sto = cat(data_sto["partition"]...,dims=2);
+informativeness_sto = cat(data_sto["posterior_mean_variance"]...,dims=2);
+partition_det = cat(data_det["partition"]...,dims=2);
+informativeness_det = cat(data_det["posterior_mean_variance"]...,dims=2);
+
+# give non-partitional outcomes a separate row for each observed informativeness
+tol_I = 1f-7
+nonpartitional_I = Float32[]
+for I in sort(unique([informativeness_sto[partition_sto .== 0]; informativeness_det[partition_det .== 0]]), rev = true)
+	!isempty(nonpartitional_I) && nonpartitional_I[end] - I <= tol_I && continue
+	push!(nonpartitional_I, I)
+	partition_sto[(partition_sto .== 0) .& (abs.(informativeness_sto .- I) .<= tol_I)] .= -length(nonpartitional_I)
+	partition_det[(partition_det .== 0) .& (abs.(informativeness_det .- I) .<= tol_I)] .= -length(nonpartitional_I)
+end
+
+# partition of the optimal equilibrium at each bias
+optimal_partition = zeros(Int64, 1, length(set_biases))
+for bias_idx in 1:length(set_biases)
+	global bias = set_biases[bias_idx]
+	global reward_matrix_s, reward_matrix_r = gen_reward_matrix()
+	optimal_partition[bias_idx] = get_partition(get_best_nash()["best_policy_s"])
+end
+
+# always include partitions that are optimal at some bias
+min_freq = 0.025   # minimum share of runs reaching a partition at any one bias under either dynamic
+max_freq(partition, p) = maximum(mean(partition .== p, dims=1))
+set_partitions = sort(unique([partition_sto; partition_det; optimal_partition]), rev = true)   # partition order for ties
+set_partitions = [p for p in set_partitions if p in optimal_partition || max_freq(partition_sto, p) >= min_freq || max_freq(partition_det, p) >= min_freq]
+
+# rank all rows by informativeness, keeping the partition order for ties
+get_policy_s(p) = convert_partition_to_policy(digits(p-1, base=2, pad=n_states-1))   # inverts get_partition
+informativeness = [p < 0 ? nonpartitional_I[-p] : get_posterior_mean_variance(get_policy_s(p)) for p in set_partitions]
+partition_rank = [count(informativeness .- I .> tol_I) for I in informativeness]
+set_partitions = set_partitions[sortperm(partition_rank)]
+
+# labels: posterior mean of each type, a dash for the non-partitional policies
+get_posterior_mean(policy_s) = round.(policy_s * get_posterior(policy_s)'T, digits=2)
+nonpartitional_label(p) = count(set_partitions .< 0) == 1 ? "--" : string("-- (", raw"$I=", nonpartitional_I[-p], raw"$)")
+labels = [p < 0 ? nonpartitional_label(p) : string(raw"$(", join(get_posterior_mean(get_policy_s(p)), ", "), raw")$") for p in set_partitions]
+
+# PARTITION DISTRIBUTION (stochastic above each row line, deterministic below, optimal across both)
+pl_policy_s_dist = plot_partition_dist(partition_sto, set_partitions; yticklabel = labels,
+													legend = "stochastic", legend_pos = "out_bottom",
+													color = "blue!50", yshift = "1.875pt");   # half the line width
+pl_policy_s_dist = plot_partition_dist!(pl_policy_s_dist, partition_det, set_partitions; legend = "deterministic", color = "green!55!black!75", yshift = "-1.875pt");
+pl_policy_s_dist = plot_partition_dist!(pl_policy_s_dist, optimal_partition, set_partitions; legend = "optimal", color = "red", style = "solid, line width=3.5pt", opacity = 0.4);
+# tighter legend, so that it fits inside the panel width
+push!(pl_policy_s_dist.options, raw"legend style={font=\footnotesize, column sep = 2pt}")
+pgfsave(joinpath(FIG_DIR, "policy_s_dist.tikz"), pl_policy_s_dist)
+pgfsave(joinpath(PDF_DIR, "policy_s_dist.pdf"), pl_policy_s_dist)
+return nothing
+
+end  # make_policy_s_dist
+
 const STEP_BIAS  = 0.005f0                                            # baseline + robustness
 
 # output dir from args: -o/--outdir OUTDIR, -o=OUTDIR, or bare positional (default paper_figures/)
@@ -208,7 +266,10 @@ mkpath(FIG_DIR); mkpath(PDF_DIR)
 
 # ---- baseline figures (from out_basecase) ----
 println("\n[paper figures] baseline (out_basecase)")
-make_figures(data_subdir(joinpath(ROOT, "out_basecase"));
+set_biases = collect(0.00f0:STEP_BIAS:0.5f0)
+sto_dir = data_subdir(joinpath(ROOT, "out_basecase"))
+_, data_sto = read_data(sto_dir)
+make_figures(sto_dir, data_sto;
 	step_bias = STEP_BIAS, main_height = H_MAIN, error_height = H_ERROR, expected_hsep = "72pt",
 	# tighter layout for policy_profiles_learned_vs_equilibria
 	cmp_panel = "$(round(0.20 * linewidth_cm, digits=4))cm", cmp_gap = "50pt", cmp_vsep = "8pt", cmp_tickfont = raw"\scriptsize",
@@ -222,6 +283,12 @@ make_figures(data_subdir(joinpath(ROOT, "out_basecase"));
 		"policy_profiles_learned_vs_equilibria" => "policy_profiles_learned_vs_equilibria",
 		"state_action_distribution_learned_vs_equilibria" => "state_action_distribution_learned_vs_equilibria",
 	))
+
+# ---- sender policy distribution (from out_basecase and out_basecase_det) ----
+# panel size: 7.2812cm x 0.7cm per partition row
+println("\n[paper figures] sender policy distribution (out_basecase, out_basecase_det)")
+_, data_det = read_data(data_subdir(joinpath(ROOT, "out_basecase_det")))
+make_policy_s_dist(data_sto, data_det)
 
 # ---- robustness figures: out_* directory => paper figure name ----
 robustness = [

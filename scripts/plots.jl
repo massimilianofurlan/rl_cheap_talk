@@ -133,6 +133,53 @@ function plot_dist!(pl, data; ymin = minimum(quantile_(data, 0.05, dims = 1)),
 	return pl
 end
 
+
+function plot_partition_dist(data, set_partitions; legend = "", title = "", xlabel = raw"$b$", ylabel = "", ylabel_style = "rotate=-90", color = "blue",
+						yticklabel = set_partitions, y_tick_label_style = raw"font=\footnotesize",
+						style = "solid, line width=3.75pt", opacity = 1.0, yshift = "0pt",
+						width = 0.45*ratio, height = 0.07*length(set_partitions),
+						legend_pos = "", additional = "")
+	# x-axis margin = half the bias step, so the edge lines fit inside the axis box
+	xpad = 0.5 / (size(data, 2) - 1) / 2
+	# initialize tikz plot
+	pl = init_tikz_axis(title = title, xlabel = xlabel, ylabel = ylabel, ylabel_style = ylabel_style, y_tick_label_style = y_tick_label_style, additional = additional, xmin = -xpad, xmax = 0.5 + xpad, ymin = 0.5, ymax = length(set_partitions) + 0.5, width = width, height = height)
+	# add row options (one row per partition, from top to bottom)
+	yticklabels = join(string.("{", yticklabel, "}"), ",")   # in braces, a label may contain commas
+	push!(pl.options,
+		"y dir = reverse",
+		"enlarge y limits = false",
+		"ytick = {1,...,$(length(set_partitions))}",
+		"yticklabels = {$yticklabels}",
+	)
+	pl = plot_partition_dist!(pl, data, set_partitions; legend = legend, color = color, style = style, opacity = opacity, yshift = yshift, legend_pos = legend_pos)
+	return pl
+end
+
+function plot_partition_dist!(pl, data, set_partitions; legend = "", color = "blue", style = "solid, line width=3.75pt", opacity = 1.0, blend_mode="multiply", yshift = "0pt", legend_pos = "")
+	# input: data matrix of dimension n_simulations x n_bias (partition of each simulation)
+	# yshift moves the lines vertically, so that several distributions fit in the same row
+
+	# process data
+	n_biases = size(data, 2)
+	xpad = 0.5 / (n_biases - 1) / 2
+	edges = range(-xpad, 0.5 + xpad, n_biases + 1)   # bin edges, one bin per bias
+	freq = [mean(data[:,b] .== p) for p in set_partitions, b in 1:n_biases]
+
+	# plot data: one line per group of consecutive biases sharing the same frequency (which sets the opacity)
+	for i in 1:length(set_partitions)
+		start = 1
+		for b in 2:n_biases+1   # n_biases+1 closes the last group
+			b <= n_biases && freq[i,b] == freq[i,start] && continue
+			@pgf pl_line = Plot({color = color, style = style, opacity = opacity*freq[i,start], blend_mode=blend_mode, yshift = yshift, forget_plot}, Coordinates([(edges[start], i), (edges[b], i)]));
+			freq[i,start] > 0 && push!(pl, pl_line);
+			start = b
+		end
+	end
+	!isempty(legend) && add_legend!(pl, legend, legend_pos)
+	!isempty(legend) && push!(pl, "\\addlegendimage{$color, $style, opacity = $opacity}")
+	return pl
+end
+
 function plot_val!(pl, data; legend = "", color = "red", style = "solid", opacity = 1.0, blend_mode="multiply", jump_mark = jump_value, legend_pos = "out_bottom")
 	# plot value on top of existing plot. jump_mark holds the value to the right of each bias
 	# ("jump mark right") or to the left ("jump mark left", used for the modal-outcome lines)

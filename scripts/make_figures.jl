@@ -21,7 +21,7 @@ ratio = 4/3
 #   save_dir / pdf_dir         : where to write the .tikz / .pdf
 #   names                      : nothing -> save all under their own names; Dict -> renamed subset
 # layout kwargs (cmp_*, expected_hsep): paper_figures.jl passes tighter values for the paper
-function make_figures(data_dir; step_bias = 0.01f0,
+function make_figures(data_dir, data = nothing; step_bias = 0.01f0,
 						main_height = 0.35, error_height = 0.35 * ratio^-1,
 						cmp_panel = raw"0.25\linewidth", cmp_gap = "50pt",
 						cmp_vsep = "16pt", cmp_tickfont = raw"\normalsize",
@@ -37,7 +37,7 @@ global set_biases = collect(0.00f0:step_bias:0.5f0)
 global script_config = Dict("in_dir" => basename(dirname(data_dir)))
 
 # read data and compute equilibria
-_, extracted_data = read_data(data_dir)
+_, extracted_data = data == nothing ? read_data(data_dir) : (nothing, data)
 n_biases_nash = 1001
 set_nash, best_nash = get_equilibria(n_biases_nash)
 
