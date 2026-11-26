@@ -137,7 +137,7 @@ end
 function plot_partition_dist(data, set_partitions; legend = "", title = "", xlabel = raw"$b$", ylabel = "", ylabel_style = "rotate=-90", color = "blue",
 						yticklabel = set_partitions, y_tick_label_style = raw"font=\footnotesize",
 						style = "solid, line width=3.75pt", opacity = 1.0, yshift = "0pt",
-						width = 0.45*ratio, height = 0.07*length(set_partitions),
+						width = 0.45*ratio, height = 0.05*length(set_partitions),
 						legend_pos = "", additional = "")
 	# x-axis margin = half the bias step, so the edge lines fit inside the axis box
 	xpad = 0.5 / (size(data, 2) - 1) / 2

@@ -285,7 +285,7 @@ make_figures(sto_dir, data_sto;
 	))
 
 # ---- sender policy distribution (from out_basecase and out_basecase_det) ----
-# panel size: 7.2812cm x 0.7cm per partition row
+# panel size: 7.2812cm x 0.5cm per partition row
 println("\n[paper figures] sender policy distribution (out_basecase, out_basecase_det)")
 _, data_det = read_data(data_subdir(joinpath(ROOT, "out_basecase_det")))
 make_policy_s_dist(data_sto, data_det)
